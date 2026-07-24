@@ -147,32 +147,36 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
         const cols = Math.max(2, term.cols || 80)
         const rows = Math.max(1, term.rows || 24)
 
-        const { sessionId } = await api.pty.spawn({
-          paneId: pane.id,
-          shellId,
-          cwd,
-          cols,
-          rows
-        })
-        if (disposedRef.current) {
-          void api.pty.kill(sessionId)
-          return
-        }
-        sessionIdRef.current = sessionId
-
+        // Subscribe before spawn so early PTY output is not lost.
+        // sessionId is set after spawn; handlers filter until it matches.
+        let sessionId = ''
         unsubData = api.pty.onData((ev) => {
-          if (ev.sessionId !== sessionIdRef.current) return
+          if (!sessionId || ev.sessionId !== sessionId) return
           term.write(ev.data)
         })
 
         unsubExit = api.pty.onExit((ev) => {
-          if (ev.sessionId !== sessionIdRef.current) return
+          if (!sessionId || ev.sessionId !== sessionId) return
           sessionIdRef.current = null
           setExited(ev.exitCode)
           term.writeln('')
           term.writeln(`\x1b[90m[process exited with code ${ev.exitCode}]\x1b[0m`)
           persistScrollback()
         })
+
+        const result = await api.pty.spawn({
+          paneId: pane.id,
+          shellId,
+          cwd,
+          cols,
+          rows
+        })
+        sessionId = result.sessionId
+        sessionIdRef.current = sessionId
+        if (disposedRef.current) {
+          void api.pty.kill(sessionId)
+          return
+        }
 
         dataDisposable = term.onData((data) => {
           const sid = sessionIdRef.current
@@ -199,9 +203,10 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
     void boot()
 
     return () => {
-      disposedRef.current = true
+      // Clear timer, persist while still mounted, then mark disposed and tear down
       if (saveTimer) clearInterval(saveTimer)
       persistScrollback()
+      disposedRef.current = true
       resizeObserver?.disconnect()
       dataDisposable?.dispose()
       unsubData?.()

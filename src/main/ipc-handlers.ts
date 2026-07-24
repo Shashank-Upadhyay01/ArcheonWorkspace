@@ -2,7 +2,11 @@ import { ipcMain } from 'electron'
 import { IpcChannels } from '../shared/ipc'
 import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
 import type { PtyManager, PtySpawnOptions } from './pty-manager'
-import { loadScrollback, saveScrollback } from './session-scrollback'
+import {
+  loadScrollback,
+  saveScrollback,
+  ScrollbackPathError
+} from './session-scrollback'
 import type { WorkspaceStore } from './workspace-store'
 
 export interface IpcHandlerDeps {
@@ -97,11 +101,16 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       payload: { workspaceId: string; paneId: string; text: string }
     ) => {
       if (!payload?.workspaceId || !payload?.paneId) return
-      saveScrollback(
-        sessionsDir,
-        { workspaceId: payload.workspaceId, paneId: payload.paneId },
-        typeof payload.text === 'string' ? payload.text : ''
-      )
+      try {
+        saveScrollback(
+          sessionsDir,
+          { workspaceId: payload.workspaceId, paneId: payload.paneId },
+          typeof payload.text === 'string' ? payload.text : ''
+        )
+      } catch (err) {
+        if (err instanceof ScrollbackPathError) return
+        throw err
+      }
     }
   )
 
@@ -109,10 +118,15 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     IpcChannels.sessionLoadScrollback,
     (_event, payload: { workspaceId: string; paneId: string }) => {
       if (!payload?.workspaceId || !payload?.paneId) return null
-      return loadScrollback(sessionsDir, {
-        workspaceId: payload.workspaceId,
-        paneId: payload.paneId
-      })
+      try {
+        return loadScrollback(sessionsDir, {
+          workspaceId: payload.workspaceId,
+          paneId: payload.paneId
+        })
+      } catch (err) {
+        if (err instanceof ScrollbackPathError) return null
+        throw err
+      }
     }
   )
 }

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { resolveShell } from '../src/main/pty-manager'
-import { capScrollbackText } from '../src/main/session-scrollback'
+import path from 'path'
+import { resolveShell, resolveCwd } from '../src/main/pty-manager'
+import {
+  capScrollbackText,
+  scrollbackPath,
+  assertSafeScrollbackKey,
+  ScrollbackPathError
+} from '../src/main/session-scrollback'
 
 describe('resolveShell', () => {
   it('resolves default/powershell on win32', () => {
@@ -19,6 +25,17 @@ describe('resolveShell', () => {
     expect(resolveShell('bash', 'win32')).toEqual({ file: 'bash.exe', args: ['-l'] })
   })
 
+  it('falls back to powershell for unknown win32 shellId', () => {
+    expect(resolveShell('zsh', 'win32')).toEqual({
+      file: 'powershell.exe',
+      args: ['-NoLogo']
+    })
+    expect(resolveShell('', 'win32')).toEqual({
+      file: 'powershell.exe',
+      args: ['-NoLogo']
+    })
+  })
+
   it('uses SHELL env or /bin/bash on linux', () => {
     const prev = process.env.SHELL
     try {
@@ -30,6 +47,17 @@ describe('resolveShell', () => {
       if (prev === undefined) delete process.env.SHELL
       else process.env.SHELL = prev
     }
+  })
+})
+
+describe('resolveCwd', () => {
+  it('returns homedir for empty or whitespace cwd', () => {
+    expect(resolveCwd('', '/home/user')).toBe('/home/user')
+    expect(resolveCwd('   ', '/home/user')).toBe('/home/user')
+  })
+
+  it('returns provided non-empty cwd', () => {
+    expect(resolveCwd('/tmp/project', '/home/user')).toBe('/tmp/project')
   })
 })
 
@@ -46,5 +74,34 @@ describe('capScrollbackText', () => {
     const lines = Array.from({ length: 10 }, (_, i) => `L${i}`)
     const capped = capScrollbackText(lines.join('\n'), 3)
     expect(capped).toBe('L7\nL8\nL9')
+  })
+})
+
+describe('scrollback path safety', () => {
+  const sessionsDir = path.join('/data', 'archeon', 'sessions')
+
+  it('builds path under sessionsDir for safe ids', () => {
+    const file = scrollbackPath(sessionsDir, {
+      workspaceId: 'ws_abc',
+      paneId: 'pane_1'
+    })
+    expect(file).toBe(
+      path.resolve(sessionsDir, 'ws_abc', 'panes', 'pane_1.scrollback.txt')
+    )
+  })
+
+  it('rejects path traversal and unsafe ids', () => {
+    expect(() =>
+      assertSafeScrollbackKey({ workspaceId: '../etc', paneId: 'pane' })
+    ).toThrow(ScrollbackPathError)
+    expect(() =>
+      assertSafeScrollbackKey({ workspaceId: 'ws', paneId: 'a/b' })
+    ).toThrow(ScrollbackPathError)
+    expect(() =>
+      scrollbackPath(sessionsDir, { workspaceId: '..', paneId: 'x' })
+    ).toThrow(ScrollbackPathError)
+    expect(() =>
+      scrollbackPath(sessionsDir, { workspaceId: 'ws', paneId: 'p..e' })
+    ).not.toThrow()
   })
 })

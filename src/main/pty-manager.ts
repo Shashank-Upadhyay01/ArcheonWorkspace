@@ -35,10 +35,17 @@ export function resolveShell(
     }
     if (shellId === 'cmd') return { file: 'cmd.exe', args: [] }
     if (shellId === 'bash') return { file: 'bash.exe', args: ['-l'] } // Git Bash if on PATH
+    // Unknown win32 shellId → PowerShell (do not fall through to bash)
+    return { file: 'powershell.exe', args: ['-NoLogo'] }
   }
   // linux / darwin
   const file = process.env.SHELL || '/bin/bash'
   return { file, args: ['-l'] }
+}
+
+/** Resolve spawn cwd: empty/whitespace → homedir. */
+export function resolveCwd(cwd: string, homedir: string = os.homedir()): string {
+  return cwd && cwd.trim() !== '' ? cwd : homedir
 }
 
 function broadcast(channel: string, payload: unknown): void {
@@ -59,8 +66,7 @@ export class PtyManager {
   spawn(opts: PtySpawnOptions): PtySpawnResult {
     const sessionId = createId('pty')
     const { file, args } = resolveShell(opts.shellId, process.platform)
-    const cwd =
-      opts.cwd && opts.cwd.trim() !== '' ? opts.cwd : os.homedir()
+    const cwd = resolveCwd(opts.cwd)
     const cols = Math.max(2, opts.cols || 80)
     const rows = Math.max(1, opts.rows || 24)
 
