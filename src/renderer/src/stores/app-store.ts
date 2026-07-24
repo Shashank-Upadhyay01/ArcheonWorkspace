@@ -1,12 +1,27 @@
 import { create } from 'zustand'
 import { nextAgentColor } from '@shared/colors'
 import { createId } from '@shared/ids'
-import { createLeaf, splitNode } from '@shared/layout'
+import {
+  builtinPresets,
+  closePane as closePaneInTree,
+  collectPaneIds,
+  createLeaf,
+  placeholderPaneId,
+  remapLayoutIds,
+  splitNode
+} from '@shared/layout'
 import {
   bumpSaveGeneration,
   shouldClearDirtyAfterFlush
 } from '@shared/save-generation'
-import type { AppSettings, Pane, PaneType, Workspace } from '@shared/types'
+import type {
+  AppSettings,
+  LayoutNode,
+  LayoutPreset,
+  Pane,
+  PaneType,
+  Workspace
+} from '@shared/types'
 import type { WorkspaceSummary } from '../../../preload/index.d'
 import { getArcheonApi } from '../lib/ipc'
 
@@ -16,6 +31,7 @@ interface AppState {
   workspaces: WorkspaceSummary[]
   activeWorkspace: Workspace | null
   settings: AppSettings | null
+  userPresets: LayoutPreset[]
   sidebarCollapsed: boolean
   dirty: boolean
   autosaveStatus: AutosaveStatus
@@ -31,7 +47,15 @@ interface AppState {
   setSidebarCollapsed: (collapsed: boolean) => void
   markDirty: () => void
   flushSave: () => Promise<void>
-  addPane: (type: PaneType) => Promise<void>
+  addPane: (type: PaneType, direction?: 'h' | 'v', anchorPaneId?: string) => Promise<void>
+  closePane: (id: string) => Promise<void>
+  renamePane: (id: string, name: string) => void
+  setPaneColor: (id: string, color: string) => void
+  setLayout: (layout: LayoutNode) => void
+  focusPane: (id: string) => void
+  applyPreset: (presetId: string) => Promise<void>
+  saveUserPreset: (name: string) => Promise<void>
+  refreshUserPresets: () => Promise<void>
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>
 }
 
@@ -107,10 +131,110 @@ function toEmptyWorkspace(ws: Workspace): Workspace {
   }
 }
 
+function dirtyWorkspace(set: (partial: Partial<AppState>) => void, next: Workspace): void {
+  saveGeneration = bumpSaveGeneration(saveGeneration)
+  set({ activeWorkspace: next, dirty: true, autosaveStatus: 'dirty' })
+}
+
+/**
+ * Materialize a preset into real pane records + remapped layout.
+ * Placeholder ids `__p0`… map 1:1 to `paneTemplates` by index.
+ */
+function materializePreset(
+  preset: LayoutPreset,
+  usedColors: string[] = []
+): { layout: LayoutNode; panes: Record<string, Pane>; activePaneId: string } {
+  const templates = preset.paneTemplates ?? [{ type: 'shell' as PaneType }]
+  const idMap = new Map<string, string>()
+  const panes: Record<string, Pane> = {}
+  const colors = [...usedColors]
+
+  for (let i = 0; i < templates.length; i++) {
+    const tpl = templates[i]
+    const paneId = createId('pane')
+    const color = tpl.color ?? nextAgentColor(colors)
+    colors.push(color)
+    const base = paneDefaults(tpl.type, paneId, color)
+    const pane: Pane = {
+      ...base,
+      ...tpl,
+      id: paneId,
+      name: tpl.name ?? base.name,
+      color,
+      type: tpl.type
+    }
+    // Ensure type-specific defaults when template only sets type
+    if (pane.type === 'shell' && !pane.shell) {
+      pane.shell = { shellId: 'default', cwd: '' }
+    }
+    if (pane.type === 'ai_chat' && !pane.aiChat) {
+      pane.aiChat = {
+        providerId: 'default',
+        model: 'default',
+        systemPrompt: '',
+        threadId: createId('thread')
+      }
+    }
+    if (pane.type === 'cli_agent' && !pane.cli) {
+      pane.cli = { command: '', args: [], env: {}, cwd: '' }
+    }
+    panes[paneId] = pane
+    idMap.set(placeholderPaneId(i), paneId)
+  }
+
+  // Also map any leaf ids that match templates by order from collectPaneIds
+  const placeholders = collectPaneIds(preset.layout)
+  placeholders.forEach((ph, i) => {
+    if (!idMap.has(ph) && i < templates.length) {
+      const mapped = idMap.get(placeholderPaneId(i))
+      if (mapped) idMap.set(ph, mapped)
+    }
+  })
+
+  const layout = remapLayoutIds(preset.layout, idMap)
+  const firstId = collectPaneIds(layout)[0] ?? Object.keys(panes)[0]
+  return { layout, panes, activePaneId: firstId }
+}
+
+/** Snapshot current workspace layout as a user preset with placeholder pane ids. */
+function workspaceToPreset(ws: Workspace, name: string): LayoutPreset {
+  const orderedIds = collectPaneIds(ws.layout)
+  const idMap = new Map<string, string>()
+  const paneTemplates: Array<Partial<Pane> & { type: PaneType }> = []
+
+  orderedIds.forEach((id, i) => {
+    const ph = placeholderPaneId(i)
+    idMap.set(id, ph)
+    const pane = ws.panes[id]
+    if (pane) {
+      paneTemplates.push({
+        type: pane.type,
+        name: pane.name,
+        color: pane.color
+      })
+    } else {
+      paneTemplates.push({ type: 'shell' })
+    }
+  })
+
+  return {
+    id: createId('preset'),
+    name,
+    builtIn: false,
+    layout: remapLayoutIds(ws.layout, idMap),
+    paneTemplates
+  }
+}
+
+function findPreset(presetId: string, userPresets: LayoutPreset[]): LayoutPreset | undefined {
+  return builtinPresets().find((p) => p.id === presetId) ?? userPresets.find((p) => p.id === presetId)
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   workspaces: [],
   activeWorkspace: null,
   settings: null,
+  userPresets: [],
   sidebarCollapsed: false,
   dirty: false,
   autosaveStatus: 'idle',
@@ -120,7 +244,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   async bootstrap() {
     try {
       const api = getArcheonApi()
-      const [list, settings] = await Promise.all([api.workspace.list(), api.settings.get()])
+      const [list, settings, userPresets] = await Promise.all([
+        api.workspace.list(),
+        api.settings.get(),
+        api.presets.list()
+      ])
       let active: Workspace | null = null
       const activeId = settings.defaultWorkspaceId
       if (activeId) {
@@ -135,6 +263,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         workspaces: list,
         settings,
+        userPresets,
         activeWorkspace: active,
         sidebarCollapsed: active?.sidebarCollapsed ?? false,
         ready: true,
@@ -152,6 +281,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const api = getArcheonApi()
     const list = await api.workspace.list()
     set({ workspaces: list })
+  },
+
+  async refreshUserPresets() {
+    const api = getArcheonApi()
+    const userPresets = await api.presets.list()
+    set({ userPresets })
   },
 
   async createWorkspace(name: string) {
@@ -307,7 +442,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  async addPane(type: PaneType) {
+  async addPane(type: PaneType, direction: 'h' | 'v' = 'h', anchorPaneId?: string) {
     const ws = get().activeWorkspace
     if (!ws) return
 
@@ -325,19 +460,130 @@ export const useAppStore = create<AppState>((set, get) => ({
         activePaneId: paneId
       }
     } else {
-      const anchor = ws.activePaneId ?? Object.keys(ws.panes)[0]
+      const anchor = anchorPaneId ?? ws.activePaneId ?? Object.keys(ws.panes)[0]
       next = {
         ...ws,
         panes: { ...ws.panes, [paneId]: pane },
-        layout: splitNode(ws.layout, anchor, 'h', paneId),
+        layout: splitNode(ws.layout, anchor, direction, paneId),
         activePaneId: paneId
       }
     }
 
-    saveGeneration = bumpSaveGeneration(saveGeneration)
-    set({ activeWorkspace: next, dirty: true, autosaveStatus: 'dirty' })
+    dirtyWorkspace(set, next)
     // Persist promptly so pane creations survive refresh
     await get().flushSave()
+  },
+
+  async closePane(id: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[id]) return
+
+    const layoutResult = closePaneInTree(ws.layout, id)
+    const { [id]: _removed, ...restPanes } = ws.panes
+
+    let next: Workspace
+    if (layoutResult === null || Object.keys(restPanes).length === 0) {
+      next = toEmptyWorkspace(ws)
+    } else {
+      const remainingIds = collectPaneIds(layoutResult)
+      const activePaneId =
+        ws.activePaneId && remainingIds.includes(ws.activePaneId)
+          ? ws.activePaneId
+          : remainingIds[0]
+      // Drop any orphan pane records not referenced by layout
+      const panes: Record<string, Pane> = {}
+      for (const pid of remainingIds) {
+        if (restPanes[pid]) panes[pid] = restPanes[pid]
+      }
+      next = {
+        ...ws,
+        panes,
+        layout: layoutResult,
+        activePaneId
+      }
+    }
+
+    dirtyWorkspace(set, next)
+    await get().flushSave()
+  },
+
+  renamePane(id: string, name: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[id]) return
+    const trimmed = name.trim()
+    if (!trimmed || trimmed === ws.panes[id].name) return
+    const next: Workspace = {
+      ...ws,
+      panes: {
+        ...ws.panes,
+        [id]: { ...ws.panes[id], name: trimmed }
+      }
+    }
+    dirtyWorkspace(set, next)
+    get().markDirty()
+  },
+
+  setPaneColor(id: string, color: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[id]) return
+    if (ws.panes[id].color === color) return
+    const next: Workspace = {
+      ...ws,
+      panes: {
+        ...ws.panes,
+        [id]: { ...ws.panes[id], color }
+      }
+    }
+    dirtyWorkspace(set, next)
+    get().markDirty()
+  },
+
+  setLayout(layout: LayoutNode) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const next: Workspace = { ...ws, layout }
+    dirtyWorkspace(set, next)
+    get().markDirty()
+  },
+
+  focusPane(id: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[id]) return
+    if (ws.activePaneId === id) return
+    // Focus is UI state worth persuming — mark dirty so resume restores it
+    const next: Workspace = { ...ws, activePaneId: id }
+    dirtyWorkspace(set, next)
+    get().markDirty()
+  },
+
+  async applyPreset(presetId: string) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const preset = findPreset(presetId, get().userPresets)
+    if (!preset) return
+
+    const { layout, panes, activePaneId } = materializePreset(preset)
+    const next: Workspace = {
+      ...ws,
+      panes,
+      layout,
+      activePaneId
+    }
+    dirtyWorkspace(set, next)
+    await get().flushSave()
+  },
+
+  async saveUserPreset(name: string) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (Object.keys(ws.panes).length === 0) return
+
+    const preset = workspaceToPreset(ws, trimmed)
+    const api = getArcheonApi()
+    const userPresets = await api.presets.upsert(preset)
+    set({ userPresets })
   },
 
   async updateSettings(partial: Partial<AppSettings>) {

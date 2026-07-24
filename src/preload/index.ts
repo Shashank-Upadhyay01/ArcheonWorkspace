@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, Workspace } from '../shared/types'
+import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
 
 const archeonApi = {
   versions: {
@@ -21,6 +21,11 @@ const archeonApi = {
   settings: {
     get: () => ipcRenderer.invoke(IpcChannels.settingsGet),
     set: (partial: Partial<AppSettings>) => ipcRenderer.invoke(IpcChannels.settingsSet, partial)
+  },
+  presets: {
+    list: () => ipcRenderer.invoke(IpcChannels.presetsList),
+    save: (presets: LayoutPreset[]) => ipcRenderer.invoke(IpcChannels.presetsSave, presets),
+    upsert: (preset: LayoutPreset) => ipcRenderer.invoke(IpcChannels.presetsUpsert, preset)
   },
   app: {
     /** Subscribe to main's pre-close flush request. Returns unsubscribe. */

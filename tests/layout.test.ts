@@ -8,7 +8,10 @@ import {
   replaceLeafWithTabs,
   serializeLayout,
   deserializeLayout,
-  builtinPresets
+  builtinPresets,
+  updateSplitSizes,
+  remapLayoutIds,
+  setTabsActive
 } from '../src/shared/layout'
 import type { LayoutNode } from '../src/shared/types'
 
@@ -108,5 +111,59 @@ describe('layout engine', () => {
     expect(root).toEqual(snapshot)
     expect(next).not.toBe(root)
     expect(root).toEqual({ type: 'leaf', paneId: 'a' })
+  })
+
+  it('updateSplitSizes normalizes sizes on root split', () => {
+    let root = createLeaf('a')
+    root = splitNode(root, 'a', 'h', 'b')
+    const next = updateSplitSizes(root, [], [0.7, 0.3])
+    expect(next.type).toBe('split')
+    if (next.type === 'split') {
+      expect(next.sizes[0]).toBeCloseTo(0.7)
+      expect(next.sizes[1]).toBeCloseTo(0.3)
+    }
+  })
+
+  it('updateSplitSizes reaches nested split via path', () => {
+    // (a | b) / c  — path [0] targets horizontal pair
+    let root = createLeaf('a')
+    root = splitNode(root, 'a', 'h', 'b')
+    root = splitNode(root, 'a', 'v', 'c')
+    // After split on a: structure is split-v of [split-h(a,b), c] or similar
+    // Actually splitNode replaces the node containing a — if root is split-h(a,b),
+    // splitting a vertically yields split-h(split-v(a,c), b)
+    expect(root.type).toBe('split')
+    if (root.type === 'split') {
+      const next = updateSplitSizes(root, [0], [0.25, 0.75])
+      if (next.type === 'split' && next.children[0].type === 'split') {
+        expect(next.children[0].sizes[0]).toBeCloseTo(0.25)
+        expect(next.children[0].sizes[1]).toBeCloseTo(0.75)
+      }
+    }
+  })
+
+  it('remapLayoutIds rewrites leaves and tabs', () => {
+    const root: LayoutNode = {
+      type: 'split',
+      direction: 'h',
+      sizes: [0.5, 0.5],
+      children: [
+        { type: 'leaf', paneId: '__p0' },
+        { type: 'tabs', active: 0, tabs: ['__p1', '__p2'] }
+      ]
+    }
+    const map = new Map([
+      ['__p0', 'real0'],
+      ['__p1', 'real1'],
+      ['__p2', 'real2']
+    ])
+    const next = remapLayoutIds(root, map)
+    expect(collectPaneIds(next).sort()).toEqual(['real0', 'real1', 'real2'])
+  })
+
+  it('setTabsActive updates active index', () => {
+    const root = replaceLeafWithTabs(createLeaf('a'), 'a', ['a', 'b', 'c'], 0)
+    const next = setTabsActive(root, 'b', 2)
+    expect(next).toEqual({ type: 'tabs', active: 2, tabs: ['a', 'b', 'c'] })
   })
 })

@@ -345,6 +345,25 @@ export class WorkspaceStore {
     return out
   }
 
+  /** Persist user presets (built-ins stay in code; only non-builtIn entries). */
+  savePresets(presets: LayoutPreset[]): LayoutPreset[] {
+    const userOnly = presets.filter((p) => !p.builtIn)
+    const validated: LayoutPreset[] = []
+    for (const item of userOnly) {
+      const r = layoutPresetSchema.safeParse(item)
+      if (r.success) validated.push(r.data as LayoutPreset)
+    }
+    atomicWriteJson(this.paths.presetsPath, validated)
+    return validated
+  }
+
+  /** Append or replace a user preset by id. */
+  upsertPreset(preset: LayoutPreset): LayoutPreset[] {
+    const all = this.loadPresets().filter((p) => p.id !== preset.id)
+    const next = [...all, { ...preset, builtIn: false }]
+    return this.savePresets(next)
+  }
+
   getSettings(): AppSettings {
     return { ...this.settings, providers: [...this.settings.providers] }
   }

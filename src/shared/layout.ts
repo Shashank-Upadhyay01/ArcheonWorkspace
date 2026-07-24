@@ -222,6 +222,98 @@ export function deserializeLayout(json: string): LayoutNode {
   return layoutNodeSchema.parse(data) as LayoutNode
 }
 
+/**
+ * Replace `sizes` on the split node at `path` (child indices from root).
+ * Empty path updates the root when it is a split. No-op if path is invalid.
+ */
+export function updateSplitSizes(
+  root: LayoutNode,
+  path: number[],
+  sizes: number[]
+): LayoutNode {
+  const nextSizes = normalizeSizes(sizes)
+
+  function replace(node: LayoutNode, remaining: number[]): LayoutNode {
+    if (remaining.length === 0) {
+      if (node.type !== 'split') return node
+      if (nextSizes.length !== node.children.length) return node
+      return {
+        type: 'split',
+        direction: node.direction,
+        sizes: nextSizes,
+        children: node.children
+      }
+    }
+
+    if (node.type !== 'split') return node
+    const [idx, ...rest] = remaining
+    if (idx < 0 || idx >= node.children.length) return node
+    return {
+      type: 'split',
+      direction: node.direction,
+      sizes: [...node.sizes],
+      children: node.children.map((child, i) =>
+        i === idx ? replace(child, rest) : child
+      )
+    }
+  }
+
+  return replace(root, path)
+}
+
+/** Set active tab index on the tabs node that contains any of `tabs` or matches path by pane. */
+export function setTabsActive(
+  root: LayoutNode,
+  paneIdInGroup: string,
+  activeIndex: number
+): LayoutNode {
+  function replace(node: LayoutNode): LayoutNode {
+    if (node.type === 'leaf') return node
+    if (node.type === 'tabs') {
+      if (!node.tabs.includes(paneIdInGroup)) return node
+      const active = Math.max(0, Math.min(activeIndex, node.tabs.length - 1))
+      return { type: 'tabs', active, tabs: [...node.tabs] }
+    }
+    return {
+      type: 'split',
+      direction: node.direction,
+      sizes: [...node.sizes],
+      children: node.children.map(replace)
+    }
+  }
+  return replace(root)
+}
+
+/**
+ * Remap leaf/tabs pane ids via `idMap`. Unmapped ids stay as-is.
+ */
+export function remapLayoutIds(
+  node: LayoutNode,
+  idMap: Map<string, string>
+): LayoutNode {
+  if (node.type === 'leaf') {
+    return { type: 'leaf', paneId: idMap.get(node.paneId) ?? node.paneId }
+  }
+  if (node.type === 'tabs') {
+    return {
+      type: 'tabs',
+      active: node.active,
+      tabs: node.tabs.map((id) => idMap.get(id) ?? id)
+    }
+  }
+  return {
+    type: 'split',
+    direction: node.direction,
+    sizes: [...node.sizes],
+    children: node.children.map((c) => remapLayoutIds(c, idMap))
+  }
+}
+
+/** Placeholder ids used in built-in presets: `__p0`, `__p1`, … */
+export function placeholderPaneId(index: number): string {
+  return `__p${index}`
+}
+
 function leaf(id: string): LayoutNode {
   return createLeaf(id)
 }

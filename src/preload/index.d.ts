@@ -1,4 +1,4 @@
-import type { AppSettings, Workspace } from '../shared/types'
+import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
 
 export interface WorkspaceSummary {
   id: string
@@ -25,6 +25,11 @@ export interface ArcheonApi {
   settings: {
     get(): Promise<AppSettings>
     set(partial: Partial<AppSettings>): Promise<AppSettings>
+  }
+  presets: {
+    list(): Promise<LayoutPreset[]>
+    save(presets: LayoutPreset[]): Promise<LayoutPreset[]>
+    upsert(preset: LayoutPreset): Promise<LayoutPreset[]>
   }
   app: {
     /** main → renderer: flush dirty state before window close. Returns unsubscribe. */

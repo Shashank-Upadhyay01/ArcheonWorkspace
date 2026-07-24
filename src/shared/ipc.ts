@@ -24,7 +24,10 @@ export const IpcChannels = {
   /** renderer → main: flush finished (or failed); close may proceed */
   appBeforeQuitSaveDone: 'app:before-quit-save-done',
   exportWorkspace: 'workspace:export',
-  importWorkspace: 'workspace:import'
+  importWorkspace: 'workspace:import',
+  presetsList: 'presets:list',
+  presetsSave: 'presets:save',
+  presetsUpsert: 'presets:upsert'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

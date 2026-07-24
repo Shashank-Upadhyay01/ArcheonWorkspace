@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, Workspace } from '../shared/types'
+import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
 import type { WorkspaceStore } from './workspace-store'
 
 /**
@@ -42,5 +42,15 @@ export function registerIpcHandlers(store: WorkspaceStore): void {
 
   ipcMain.handle(IpcChannels.settingsSet, (_event, partial: Partial<AppSettings>) =>
     store.setSettings(partial)
+  )
+
+  ipcMain.handle(IpcChannels.presetsList, () => store.loadPresets())
+
+  ipcMain.handle(IpcChannels.presetsSave, (_event, presets: LayoutPreset[]) =>
+    store.savePresets(presets)
+  )
+
+  ipcMain.handle(IpcChannels.presetsUpsert, (_event, preset: LayoutPreset) =>
+    store.upsertPreset(preset)
   )
 }

@@ -65,8 +65,8 @@ export default function EmptyWorkspace({ hasWorkspace }: EmptyWorkspaceProps): J
         <p className="empty-kicker">Empty workspace</p>
         <h2 className="empty-title">Add your first pane</h2>
         <p className="empty-copy">
-          Spin up a shell, AI chat, or CLI agent. Layout and PTY wiring follow in later tasks —
-          panes are already persisted in the workspace store.
+          Spin up a shell, AI chat, or CLI agent — or apply a layout preset from the sidebar.
+          Pane hosts persist; PTY and AI wiring land in the next tasks.
         </p>
         <div className="empty-ctas">
           {CTAS.map((cta) => (
