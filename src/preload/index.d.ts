@@ -6,6 +6,29 @@ export interface WorkspaceSummary {
   updatedAt: string
 }
 
+export interface PtySpawnOptions {
+  paneId: string
+  shellId: string
+  cwd: string
+  cols: number
+  rows: number
+}
+
+export interface PtyDataEvent {
+  sessionId: string
+  data: string
+}
+
+export interface PtyExitEvent {
+  sessionId: string
+  exitCode: number
+}
+
+export interface ScrollbackKey {
+  workspaceId: string
+  paneId: string
+}
+
 export interface ArcheonApi {
   versions: {
     node: string
@@ -30,6 +53,18 @@ export interface ArcheonApi {
     list(): Promise<LayoutPreset[]>
     save(presets: LayoutPreset[]): Promise<LayoutPreset[]>
     upsert(preset: LayoutPreset): Promise<LayoutPreset[]>
+  }
+  pty: {
+    spawn(opts: PtySpawnOptions): Promise<{ sessionId: string }>
+    write(sessionId: string, data: string): void
+    resize(sessionId: string, cols: number, rows: number): void
+    kill(sessionId: string): Promise<void>
+    onData(cb: (event: PtyDataEvent) => void): () => void
+    onExit(cb: (event: PtyExitEvent) => void): () => void
+  }
+  session: {
+    saveScrollback(key: ScrollbackKey & { text: string }): Promise<void>
+    loadScrollback(key: ScrollbackKey): Promise<string | null>
   }
   app: {
     /** main → renderer: flush dirty state before window close. Returns unsubscribe. */

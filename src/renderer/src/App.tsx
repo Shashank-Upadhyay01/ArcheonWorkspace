@@ -1,22 +1,25 @@
 import { useCallback, useEffect } from 'react'
 import EmptyWorkspace from './components/EmptyWorkspace'
 import DockLayout from './components/layout/DockLayout'
+import ShellPane from './components/panes/ShellPane'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
 import TitleBar from './components/TitleBar'
 import type { LayoutNode, Pane } from '@shared/types'
 import { useAppStore } from './stores/app-store'
 
-function PaneBody({ pane }: { pane: Pane }): JSX.Element {
+function PaneBody({ pane, workspaceId }: { pane: Pane; workspaceId: string }): JSX.Element {
+  if (pane.type === 'shell') {
+    return <ShellPane pane={pane} workspaceId={workspaceId} />
+  }
+
   return (
     <div className="pane-body-placeholder">
       <p className="pane-body-placeholder-meta">{pane.type.replace('_', ' ')}</p>
       <p className="pane-body-placeholder-hint">
-        {pane.type === 'shell'
-          ? 'Shell PTY will attach here in the next task.'
-          : pane.type === 'ai_chat'
-            ? 'AI chat stream will attach here later.'
-            : 'CLI agent process will attach here later.'}
+        {pane.type === 'ai_chat'
+          ? 'AI chat stream will attach here later.'
+          : 'CLI agent process will attach here later.'}
       </p>
     </div>
   )
@@ -42,7 +45,12 @@ function WorkspaceDock(): JSX.Element {
     [focusPane]
   )
 
-  const renderPane = useCallback((pane: Pane) => <PaneBody pane={pane} />, [])
+  const workspaceId = activeWorkspace?.id ?? ''
+
+  const renderPane = useCallback(
+    (pane: Pane) => <PaneBody pane={pane} workspaceId={workspaceId} />,
+    [workspaceId]
+  )
 
   if (!activeWorkspace) return <EmptyWorkspace hasWorkspace={false} />
 

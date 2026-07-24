@@ -3,9 +3,12 @@ import { join } from 'path'
 import { IpcChannels } from '../shared/ipc'
 import { createAutosave } from './autosave'
 import { registerIpcHandlers } from './ipc-handlers'
+import { getUserDataPaths } from './paths'
+import { PtyManager } from './pty-manager'
 import { WorkspaceStore } from './workspace-store'
 
 let store: WorkspaceStore | null = null
+let ptyManager: PtyManager | null = null
 let recoveryAutosave: ReturnType<typeof createAutosave> | null = null
 
 /** Max wait for renderer flushSave ack before force-closing the window. */
@@ -94,8 +97,11 @@ function writeRecoverySnapshot(): void {
 }
 
 app.whenReady().then(() => {
-  store = new WorkspaceStore(app.getPath('userData'))
-  registerIpcHandlers(store)
+  const userData = app.getPath('userData')
+  store = new WorkspaceStore(userData)
+  ptyManager = new PtyManager()
+  const { sessionsDir } = getUserDataPaths(userData)
+  registerIpcHandlers({ store, pty: ptyManager, sessionsDir })
 
   const settings = store.getSettings()
   recoveryAutosave = createAutosave(writeRecoverySnapshot, settings.autosaveMs)
@@ -112,6 +118,7 @@ app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => {
+  ptyManager?.killAll()
   recoveryAutosave?.flush()
   recoveryAutosave?.dispose()
 })

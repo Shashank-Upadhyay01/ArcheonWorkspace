@@ -13,6 +13,8 @@ export const IpcChannels = {
   ptyKill: 'pty:kill',
   ptyData: 'pty:data', // main → renderer event
   ptyExit: 'pty:exit',
+  sessionSaveScrollback: 'session:saveScrollback',
+  sessionLoadScrollback: 'session:loadScrollback',
   aiChat: 'ai:chat',
   aiChatChunk: 'ai:chatChunk',
   secretsSet: 'secrets:set',

@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest'
+import { resolveShell } from '../src/main/pty-manager'
+import { capScrollbackText } from '../src/main/session-scrollback'
+
+describe('resolveShell', () => {
+  it('resolves default/powershell on win32', () => {
+    expect(resolveShell('default', 'win32')).toEqual({
+      file: 'powershell.exe',
+      args: ['-NoLogo']
+    })
+    expect(resolveShell('powershell', 'win32')).toEqual({
+      file: 'powershell.exe',
+      args: ['-NoLogo']
+    })
+  })
+
+  it('resolves cmd and bash on win32', () => {
+    expect(resolveShell('cmd', 'win32')).toEqual({ file: 'cmd.exe', args: [] })
+    expect(resolveShell('bash', 'win32')).toEqual({ file: 'bash.exe', args: ['-l'] })
+  })
+
+  it('uses SHELL env or /bin/bash on linux', () => {
+    const prev = process.env.SHELL
+    try {
+      delete process.env.SHELL
+      expect(resolveShell('default', 'linux')).toEqual({ file: '/bin/bash', args: ['-l'] })
+      process.env.SHELL = '/bin/zsh'
+      expect(resolveShell('anything', 'linux')).toEqual({ file: '/bin/zsh', args: ['-l'] })
+    } finally {
+      if (prev === undefined) delete process.env.SHELL
+      else process.env.SHELL = prev
+    }
+  })
+})
+
+describe('capScrollbackText', () => {
+  it('returns empty for empty input', () => {
+    expect(capScrollbackText('')).toBe('')
+  })
+
+  it('keeps short text intact', () => {
+    expect(capScrollbackText('a\nb\nc')).toBe('a\nb\nc')
+  })
+
+  it('caps to last N lines', () => {
+    const lines = Array.from({ length: 10 }, (_, i) => `L${i}`)
+    const capped = capScrollbackText(lines.join('\n'), 3)
+    expect(capped).toBe('L7\nL8\nL9')
+  })
+})

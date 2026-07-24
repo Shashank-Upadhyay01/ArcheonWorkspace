@@ -841,6 +841,50 @@ button {
   overflow: hidden;
 }
 
+.shell-pane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+.shell-pane-banner {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--border);
+}
+
+.shell-pane-banner--error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-panel));
+}
+
+.shell-pane-banner--exit {
+  color: var(--text-muted);
+  background: var(--bg-panel);
+}
+
+.shell-pane-term {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 0.35rem 0.45rem 0.5rem;
+  overflow: hidden;
+}
+
+.shell-pane-term .xterm {
+  height: 100%;
+}
+
+.shell-pane-term .xterm-viewport {
+  overflow-y: auto !important;
+}
+
 .pane-body-placeholder {
   flex: 1;
   display: flex;
