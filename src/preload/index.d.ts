@@ -113,7 +113,9 @@ export interface ArcheonApi {
     delete(key: string): Promise<void>
   }
   ai: {
-    chat(req: AiChatRequest): Promise<{ ok: true }>
+    chat(req: AiChatRequest): Promise<{ ok: true; cancelled?: boolean }>
+    /** Abort an in-flight stream by requestId. */
+    cancel(requestId: string): void
     onChunk(cb: (event: AiChatChunkEvent) => void): () => void
   }
   app: {

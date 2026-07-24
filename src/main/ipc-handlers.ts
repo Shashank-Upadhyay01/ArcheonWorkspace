@@ -49,6 +49,8 @@ export interface IpcHandlerDeps {
   sessionsDir: string
   secrets: SecureStore
   aiClient?: AIClient
+  /** Called after a successful workspace save so recovery snapshot stays fresh. */
+  onWorkspaceSaved?: () => void
 }
 
 /**
@@ -56,21 +58,37 @@ export interface IpcHandlerDeps {
  * Call once after the store / PtyManager / SecureStore are constructed on app ready.
  */
 export function registerIpcHandlers(deps: IpcHandlerDeps): void {
-  const { store, pty, sessionsDir, secrets } = deps
+  const { store, pty, sessionsDir, secrets, onWorkspaceSaved } = deps
   const aiClient = deps.aiClient ?? new AIClient()
+  /** requestId → AbortController for in-flight AI streams */
+  const aiAbortByRequest = new Map<string, AbortController>()
+
+  const touchRecovery = (): void => {
+    try {
+      onWorkspaceSaved?.()
+    } catch {
+      /* best-effort */
+    }
+  }
 
   ipcMain.handle(IpcChannels.workspaceList, () => store.list())
 
   ipcMain.handle(IpcChannels.workspaceGet, (_event, id: string) => store.get(id))
 
-  ipcMain.handle(IpcChannels.workspaceCreate, (_event, name: string) => store.create(name))
+  ipcMain.handle(IpcChannels.workspaceCreate, (_event, name: string) => {
+    const ws = store.create(name)
+    touchRecovery()
+    return ws
+  })
 
   ipcMain.handle(IpcChannels.workspaceSave, (_event, ws: Workspace) => {
     store.save(ws)
+    touchRecovery()
   })
 
   ipcMain.handle(IpcChannels.workspaceDelete, (_event, id: string) => {
     store.delete(id)
+    touchRecovery()
   })
 
   ipcMain.handle(IpcChannels.workspaceSetActive, (_event, id: string) => {
@@ -274,6 +292,12 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   })
 
   // ── AI chat streaming ──────────────────────────────────────
+  ipcMain.on(IpcChannels.aiChatCancel, (_event, requestId: string) => {
+    if (typeof requestId !== 'string' || !requestId) return
+    const ac = aiAbortByRequest.get(requestId)
+    if (ac) ac.abort()
+  })
+
   ipcMain.handle(IpcChannels.aiChat, async (event, req: AiChatRequest) => {
     if (!req?.requestId || typeof req.requestId !== 'string') {
       throw new Error('ai:chat requires requestId')
@@ -281,6 +305,8 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     const sender = event.sender
     const requestId = req.requestId
     let terminalSent = false
+    const ac = new AbortController()
+    aiAbortByRequest.set(requestId, ac)
 
     const sendChunk = (payload: AiChatChunkEvent): void => {
       if (sender.isDestroyed()) return
@@ -318,19 +344,37 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
         systemPrompt: typeof req.systemPrompt === 'string' ? req.systemPrompt : '',
         messages,
         apiKey,
-        baseUrl
+        baseUrl,
+        signal: ac.signal
       })) {
+        if (ac.signal.aborted) break
         sendChunk({ requestId, text })
+      }
+
+      // Cancelled streams still close cleanly so the renderer can keep partial text.
+      if (ac.signal.aborted) {
+        sendChunk({ requestId, done: true })
+        return { ok: true as const, cancelled: true as const }
       }
 
       sendChunk({ requestId, done: true })
       return { ok: true as const }
     } catch (err) {
+      const cancelled =
+        (err instanceof AiClientError && err.cancelled) || ac.signal.aborted
+      if (cancelled) {
+        if (!terminalSent) {
+          sendChunk({ requestId, done: true })
+        }
+        return { ok: true as const, cancelled: true as const }
+      }
       const message = err instanceof Error ? err.message : String(err)
       if (!terminalSent) {
         sendChunk({ requestId, done: true, error: message })
       }
       throw err instanceof Error ? err : new Error(message)
+    } finally {
+      aiAbortByRequest.delete(requestId)
     }
   })
 }

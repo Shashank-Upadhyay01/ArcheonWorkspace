@@ -57,6 +57,11 @@ interface AppState {
   ptySessionByPane: Record<string, string>
   /** Live roster status by pane id. */
   paneRuntimeStatus: Record<string, PaneRuntimeStatus>
+  /**
+   * Bumped when focusPane wants a pane to take input focus (terminal / composer).
+   * Panes watch `seq` for their id and call term.focus() / input.focus().
+   */
+  focusRequest: { paneId: string; seq: number } | null
 
   bootstrap: () => Promise<void>
   refreshList: () => Promise<void>
@@ -185,9 +190,28 @@ function toEmptyWorkspace(ws: Workspace): Workspace {
   }
 }
 
-function dirtyWorkspace(set: (partial: Partial<AppState>) => void, next: Workspace): void {
+/** Schedule a single debounced flushSave from the current autosaveMs. */
+function scheduleDebouncedSave(get: () => AppState): void {
+  const ms = get().settings?.autosaveMs ?? DEFAULT_SETTINGS.autosaveMs
+  clearSaveTimer()
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    void get().flushSave()
+  }, ms)
+}
+
+/**
+ * Apply a dirty workspace mutation: one generation bump + debounce schedule.
+ * Callers must not also call markDirty() (that would double-bump).
+ */
+function dirtyWorkspace(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+  next: Workspace
+): void {
   saveGeneration = bumpSaveGeneration(saveGeneration)
   set({ activeWorkspace: next, dirty: true, autosaveStatus: 'dirty' })
+  scheduleDebouncedSave(get)
 }
 
 /**
@@ -301,6 +325,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   broadcastPaneIds: [],
   ptySessionByPane: {},
   paneRuntimeStatus: {},
+  focusRequest: null,
 
   async bootstrap() {
     try {
@@ -402,7 +427,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
       }
-      dirtyWorkspace(set, next)
+      dirtyWorkspace(set, get, next)
       await get().flushSave()
       return
     }
@@ -441,7 +466,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         activePaneId: newId
       }
     }
-    dirtyWorkspace(set, next)
+    dirtyWorkspace(set, get, next)
     await get().flushSave()
   },
 
@@ -473,8 +498,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     }
-    dirtyWorkspace(set, next)
-    get().markDirty()
+    dirtyWorkspace(set, get, next)
   },
 
   async createWorkspace(name: string) {
@@ -584,12 +608,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSidebarCollapsed(collapsed: boolean) {
-    set({ sidebarCollapsed: collapsed })
     const ws = get().activeWorkspace
-    if (!ws) return
+    if (!ws) {
+      set({ sidebarCollapsed: collapsed })
+      return
+    }
     const next = { ...ws, sidebarCollapsed: collapsed }
-    set({ activeWorkspace: next })
-    get().markDirty()
+    set({ sidebarCollapsed: collapsed })
+    dirtyWorkspace(set, get, next)
   },
 
   setSettingsOpen(open: boolean) {
@@ -705,14 +731,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   markDirty() {
-    const ms = get().settings?.autosaveMs ?? DEFAULT_SETTINGS.autosaveMs
+    // Standalone dirty bump (e.g. external callers). Prefer dirtyWorkspace for
+    // workspace mutations so generation is only bumped once per edit.
     saveGeneration = bumpSaveGeneration(saveGeneration)
     set({ dirty: true, autosaveStatus: 'dirty' })
-    clearSaveTimer()
-    saveTimer = setTimeout(() => {
-      saveTimer = null
-      void get().flushSave()
-    }, ms)
+    scheduleDebouncedSave(get)
   },
 
   async flushSave() {
@@ -780,7 +803,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    dirtyWorkspace(set, next)
+    dirtyWorkspace(set, get, next)
     // Persist promptly so pane creations survive refresh
     await get().flushSave()
   },
@@ -822,7 +845,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       paneRuntimeStatus: restStatus
     })
 
-    dirtyWorkspace(set, next)
+    dirtyWorkspace(set, get, next)
     await get().flushSave()
   },
 
@@ -838,8 +861,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         [id]: { ...ws.panes[id], name: trimmed }
       }
     }
-    dirtyWorkspace(set, next)
-    get().markDirty()
+    dirtyWorkspace(set, get, next)
   },
 
   setPaneColor(id: string, color: string) {
@@ -853,26 +875,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         [id]: { ...ws.panes[id], color }
       }
     }
-    dirtyWorkspace(set, next)
-    get().markDirty()
+    dirtyWorkspace(set, get, next)
   },
 
   setLayout(layout: LayoutNode) {
     const ws = get().activeWorkspace
     if (!ws) return
     const next: Workspace = { ...ws, layout }
-    dirtyWorkspace(set, next)
-    get().markDirty()
+    dirtyWorkspace(set, get, next)
   },
 
   focusPane(id: string) {
     const ws = get().activeWorkspace
     if (!ws || !ws.panes[id]) return
-    if (ws.activePaneId === id) return
-    // Focus is UI state worth persuming — mark dirty so resume restores it
-    const next: Workspace = { ...ws, activePaneId: id }
-    dirtyWorkspace(set, next)
-    get().markDirty()
+    const seq = (get().focusRequest?.seq ?? 0) + 1
+    // Always request input focus so re-clicking the active pane still focuses the term
+    if (ws.activePaneId !== id) {
+      // Focus is UI state worth persisting — mark dirty so resume restores it
+      const next: Workspace = { ...ws, activePaneId: id }
+      dirtyWorkspace(set, get, next)
+    }
+    set({ focusRequest: { paneId: id, seq } })
   },
 
   async applyPreset(presetId: string) {
@@ -892,7 +915,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       layout,
       activePaneId
     }
-    dirtyWorkspace(set, next)
+    dirtyWorkspace(set, get, next)
     // Preset replaces all panes — drop stale broadcast/PTY/runtime maps
     set({
       broadcastPaneIds: [],

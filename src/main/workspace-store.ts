@@ -133,6 +133,42 @@ export class WorkspaceStore {
     this.ensureDirs()
     this.loadSettings()
     this.loadAll()
+    // If workspace files are gone but recovery still has panes, restore them.
+    this.restoreFromRecoveryIfEmpty()
+  }
+
+  /**
+   * When disk workspaces are empty but a recovery snapshot has workspaces,
+   * rehydrate each workspace file from the snapshot (best-effort crash recovery).
+   */
+  restoreFromRecoveryIfEmpty(): boolean {
+    if (this.workspaces.size > 0) return false
+    const snap = this.readRecovery()
+    if (!snap || snap.workspaces.length === 0) return false
+    for (const ws of snap.workspaces) {
+      try {
+        this.save(ws)
+      } catch {
+        // skip invalid / unparseable entries
+      }
+    }
+    if (snap.activeWorkspaceId && this.workspaces.has(snap.activeWorkspaceId)) {
+      try {
+        this.setActive(snap.activeWorkspaceId)
+      } catch {
+        /* ignore */
+      }
+    } else if (this.workspaces.size > 0 && !this.activeId) {
+      const first = this.workspaces.keys().next().value as string | undefined
+      if (first) {
+        try {
+          this.setActive(first)
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return this.workspaces.size > 0
   }
 
   private ensureDirs(): void {

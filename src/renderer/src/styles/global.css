@@ -1047,6 +1047,10 @@ button {
   flex-shrink: 0;
 }
 
+.ai-chat-stop {
+  color: var(--danger, #f07178);
+}
+
 .ai-chat-clear {
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;

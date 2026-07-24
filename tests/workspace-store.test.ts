@@ -82,6 +82,35 @@ describe('WorkspaceStore', () => {
     expect(snap?.activeWorkspaceId).toBe(ws.id)
   })
 
+  it('restores workspaces from recovery when disk is empty', () => {
+    const ws = store.create('Recovered')
+    store.writeRecovery({ activeWorkspaceId: ws.id, workspaces: [ws] })
+    // Wipe workspace files only — leave recovery snapshot
+    const paths = getUserDataPaths(dir)
+    for (const f of fs.readdirSync(paths.workspacesDir)) {
+      fs.unlinkSync(path.join(paths.workspacesDir, f))
+    }
+    const reloaded = new WorkspaceStore(dir)
+    expect(reloaded.get(ws.id)?.name).toBe('Recovered')
+    expect(reloaded.list().map((w) => w.id)).toContain(ws.id)
+  })
+
+  it('does not restore from recovery when workspaces already exist', () => {
+    const live = store.create('Live')
+    const ghost: Workspace = {
+      ...live,
+      id: 'ws_ghost',
+      name: 'Ghost'
+    }
+    store.writeRecovery({
+      activeWorkspaceId: ghost.id,
+      workspaces: [ghost]
+    })
+    const reloaded = new WorkspaceStore(dir)
+    expect(reloaded.get(live.id)?.name).toBe('Live')
+    expect(reloaded.get('ws_ghost')).toBeNull()
+  })
+
   it('persists workspaces to disk and reloads via loadAll', () => {
     const ws = store.create('Persisted')
     const paths = getUserDataPaths(dir)

@@ -31,9 +31,17 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
   const [hasKey, setHasKey] = useState<boolean | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const requestIdRef = useRef<string | null>(null)
   const streamAccRef = useRef('')
   const disposedRef = useRef(false)
+  const focusRequest = useAppStore((s) => s.focusRequest)
+
+  // Respond to store focusPane requests
+  useEffect(() => {
+    if (!focusRequest || focusRequest.paneId !== pane.id) return
+    inputRef.current?.focus()
+  }, [focusRequest, pane.id])
 
   // Load thread + key status whenever pane/workspace changes; always reset local UI state.
   useEffect(() => {
@@ -45,7 +53,16 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     setLoaded(false)
     setHasKey(null)
     streamAccRef.current = ''
+    // Cancel any in-flight stream from a previous mount of this pane id
+    const prevReq = requestIdRef.current
     requestIdRef.current = null
+    if (prevReq) {
+      try {
+        getArcheonApi().ai.cancel(prevReq)
+      } catch {
+        /* bridge missing */
+      }
+    }
     setPaneRuntimeStatus(pane.id, 'idle')
 
     let api: ReturnType<typeof getArcheonApi>
@@ -85,6 +102,15 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
 
     return () => {
       disposedRef.current = true
+      const activeReq = requestIdRef.current
+      if (activeReq) {
+        try {
+          getArcheonApi().ai.cancel(activeReq)
+        } catch {
+          /* bridge missing */
+        }
+        requestIdRef.current = null
+      }
       setPaneRuntimeStatus(pane.id, null)
     }
   }, [workspaceId, pane.id, providerId, setPaneRuntimeStatus])
@@ -121,6 +147,16 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     setStreamText('')
     persist([])
   }, [streaming, persist])
+
+  const stop = useCallback(() => {
+    const requestId = requestIdRef.current
+    if (!requestId) return
+    try {
+      getArcheonApi().ai.cancel(requestId)
+    } catch {
+      /* bridge missing */
+    }
+  }, [])
 
   const send = useCallback(async () => {
     const text = draft.trim()
@@ -215,6 +251,16 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
           </span>
         </div>
         <div className="ai-chat-header-actions">
+          {streaming ? (
+            <button
+              type="button"
+              className="btn btn--ghost ai-chat-stop"
+              onClick={stop}
+              title="Stop generation"
+            >
+              Stop
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn--ghost ai-chat-clear"
@@ -277,6 +323,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
         }}
       >
         <textarea
+          ref={inputRef}
           className="ai-chat-input"
           rows={2}
           placeholder="Message…"
@@ -290,13 +337,19 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
             }
           }}
         />
-        <button
-          type="submit"
-          className="btn btn--accent ai-chat-send"
-          disabled={streaming || !draft.trim()}
-        >
-          {streaming ? '…' : 'Send'}
-        </button>
+        {streaming ? (
+          <button type="button" className="btn btn--ghost ai-chat-send" onClick={stop}>
+            Stop
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="btn btn--accent ai-chat-send"
+            disabled={!draft.trim()}
+          >
+            Send
+          </button>
+        )}
       </form>
     </div>
   )

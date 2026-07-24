@@ -39,6 +39,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
   const updatePaneCli = useAppStore((s) => s.updatePaneCli)
   const registerPtySession = useAppStore((s) => s.registerPtySession)
   const setPaneRuntimeStatus = useAppStore((s) => s.setPaneRuntimeStatus)
+  const focusRequest = useAppStore((s) => s.focusRequest)
 
   const hostRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -59,6 +60,12 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
   const [cwd, setCwd] = useState(pane.cli?.cwd ?? '')
   /** After mount we never auto-start; user must confirm relaunch/start. */
   const [awaitingConfirm, setAwaitingConfirm] = useState(true)
+
+  // Respond to store focusPane requests
+  useEffect(() => {
+    if (!focusRequest || focusRequest.paneId !== pane.id) return
+    termRef.current?.focus()
+  }, [focusRequest, pane.id])
 
   // Sync local form when pane config changes externally (profile apply)
   useEffect(() => {

@@ -143,8 +143,14 @@ const archeonApi = {
     delete: (key: string): Promise<void> => ipcRenderer.invoke(IpcChannels.secretsDelete, key)
   },
   ai: {
-    chat: (req: AiChatRequest): Promise<{ ok: true }> =>
+    chat: (req: AiChatRequest): Promise<{ ok: true; cancelled?: boolean }> =>
       ipcRenderer.invoke(IpcChannels.aiChat, req),
+    /** Abort an in-flight stream by requestId (main AbortController). */
+    cancel: (requestId: string): void => {
+      if (typeof requestId === 'string' && requestId) {
+        ipcRenderer.send(IpcChannels.aiChatCancel, requestId)
+      }
+    },
     onChunk: (cb: (event: AiChatChunkEvent) => void): (() => void) => {
       const handler = (_e: Electron.IpcRendererEvent, payload: AiChatChunkEvent): void => {
         cb(payload)

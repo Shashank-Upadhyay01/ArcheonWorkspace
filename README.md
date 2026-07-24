@@ -10,9 +10,10 @@ Multi-agent terminal desktop app for **Windows** and **Linux**. Dockable shell p
 ## Features
 
 - Dockable shell / AI / CLI panes with split layout and presets
-- Multi-workspace switcher with autosave and crash recovery
+- Multi-workspace switcher with **session autosave + quit flush**
+- Crash recovery snapshot written on every workspace save (and on quit); empty-disk boot rehydrates workspaces from the last snapshot (no separate restore UI)
 - Terminal PTY sessions with scrollback restore
-- AI chat panes (OpenAI-compatible APIs) with secure key storage
+- AI chat panes (OpenAI-compatible APIs) with secure key storage and stream cancel (Stop)
 - CLI agent panes with profile env, args, and working directory
 - Command palette (`Ctrl+K` / `Cmd+K`), agent roster, broadcast input
 - Export / import workspaces (secrets stripped)

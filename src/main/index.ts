@@ -103,12 +103,23 @@ app.whenReady().then(() => {
   ptyManager = new PtyManager()
   const { sessionsDir, secretsDir } = getUserDataPaths(userData)
   const secrets = new SecureStore(secretsDir)
-  registerIpcHandlers({ store, pty: ptyManager, sessionsDir, secrets })
 
   const settings = store.getSettings()
   recoveryAutosave = createAutosave(writeRecoverySnapshot, settings.autosaveMs)
-  // Seed a recovery snapshot on boot
+  // Seed a recovery snapshot on boot (also rewritten on every workspace save)
   recoveryAutosave.touch()
+
+  registerIpcHandlers({
+    store,
+    pty: ptyManager,
+    sessionsDir,
+    secrets,
+    onWorkspaceSaved: () => {
+      // Debounced snapshot on save so crash recovery stays current without
+      // writing on every keystroke path that does not yet persist.
+      recoveryAutosave?.touch()
+    }
+  })
 
   createWindow()
 

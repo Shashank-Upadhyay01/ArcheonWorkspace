@@ -36,6 +36,7 @@ function serializeScrollback(term: Terminal): string {
 export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.Element {
   const registerPtySession = useAppStore((s) => s.registerPtySession)
   const setPaneRuntimeStatus = useAppStore((s) => s.setPaneRuntimeStatus)
+  const focusRequest = useAppStore((s) => s.focusRequest)
   const hostRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -43,6 +44,12 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
   const disposedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [exited, setExited] = useState<number | null>(null)
+
+  // Respond to store focusPane requests (sidebar / command palette / chrome click)
+  useEffect(() => {
+    if (!focusRequest || focusRequest.paneId !== pane.id) return
+    termRef.current?.focus()
+  }, [focusRequest, pane.id])
 
   useEffect(() => {
     disposedRef.current = false

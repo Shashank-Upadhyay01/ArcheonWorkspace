@@ -17,6 +17,8 @@ export const IpcChannels = {
   sessionLoadScrollback: 'session:loadScrollback',
   aiChat: 'ai:chat',
   aiChatChunk: 'ai:chatChunk',
+  /** renderer → main: abort an in-flight AI stream by requestId */
+  aiChatCancel: 'ai:chatCancel',
   secretsSet: 'secrets:set',
   secretsHas: 'secrets:has',
   secretsDelete: 'secrets:delete',

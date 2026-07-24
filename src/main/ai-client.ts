@@ -16,12 +16,16 @@ export interface ChatStreamParams {
   apiKey: string
   /** Override provider base URL (no trailing slash). */
   baseUrl?: string
+  /** Optional abort signal to cancel fetch / stream mid-flight. */
+  signal?: AbortSignal
 }
 
 export class AiClientError extends Error {
   constructor(
     message: string,
-    readonly status?: number
+    readonly status?: number,
+    /** True when the caller aborted via AbortSignal. */
+    readonly cancelled = false
   ) {
     super(message)
     this.name = 'AiClientError'
@@ -138,12 +142,15 @@ export class AIClient {
    * Stream assistant text deltas as an async iterable of strings.
    */
   async *chatStream(params: ChatStreamParams): AsyncIterable<string> {
-    const { providerId, model, systemPrompt, messages, apiKey, baseUrl } = params
+    const { providerId, model, systemPrompt, messages, apiKey, baseUrl, signal } = params
     if (!apiKey?.trim()) {
       throw new AiClientError('API key is missing')
     }
     if (!model?.trim()) {
       throw new AiClientError('Model is required')
+    }
+    if (signal?.aborted) {
+      throw new AiClientError('Request cancelled', undefined, true)
     }
 
     const base = resolveProviderBaseUrl(providerId, baseUrl)
@@ -162,9 +169,13 @@ export class AIClient {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey.trim()}`
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal
       })
     } catch (err) {
+      if (isAbortError(err) || signal?.aborted) {
+        throw new AiClientError('Request cancelled', undefined, true)
+      }
       throw new AiClientError(
         `Failed to reach AI provider: ${err instanceof Error ? err.message : String(err)}`
       )
@@ -191,8 +202,20 @@ export class AIClient {
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
 
+    const onAbort = (): void => {
+      try {
+        void reader.cancel()
+      } catch {
+        /* ignore */
+      }
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+
     try {
       while (true) {
+        if (signal?.aborted) {
+          throw new AiClientError('Request cancelled', undefined, true)
+        }
         const { done, value } = await reader.read()
         if (done) break
         buffer += decoder.decode(value, { stream: true })
@@ -208,14 +231,20 @@ export class AIClient {
         }
       }
       // Flush trailing buffer (some servers omit final blank line)
-      if (buffer.trim()) {
+      if (buffer.trim() && !signal?.aborted) {
         const data = dataFromSseEvent(buffer) ?? buffer.trim()
         const parsed = parseSseDataPayload(data.startsWith('data:') ? data.slice(5) : data)
         if (parsed && 'text' in parsed) {
           yield parsed.text
         }
       }
+    } catch (err) {
+      if (isAbortError(err) || signal?.aborted) {
+        throw new AiClientError('Request cancelled', undefined, true)
+      }
+      throw err
     } finally {
+      signal?.removeEventListener('abort', onAbort)
       try {
         reader.releaseLock()
       } catch {
@@ -223,4 +252,10 @@ export class AIClient {
       }
     }
   }
+}
+
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const name = (err as { name?: string }).name
+  return name === 'AbortError' || name === 'TimeoutError'
 }
