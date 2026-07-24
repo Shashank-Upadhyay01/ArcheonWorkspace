@@ -62,7 +62,16 @@ interface AppState {
 const DEFAULT_SETTINGS: AppSettings = {
   themeId: 'default',
   autosaveMs: 1000,
-  providers: []
+  defaultProviderId: 'xai',
+  defaultModel: 'grok-2-latest',
+  providers: [
+    { id: 'xai', label: 'xAI', baseUrl: 'https://api.x.ai/v1' },
+    {
+      id: 'openai-compatible',
+      label: 'OpenAI-compatible',
+      baseUrl: 'https://api.openai.com/v1'
+    }
+  ]
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -80,7 +89,12 @@ function clearSaveTimer(): void {
  * cwd: empty string means "resolve to homedir later" (PTY task).
  * Renderer has no os.homedir(); main/Task 7 maps '' → home.
  */
-function paneDefaults(type: PaneType, id: string, color: string): Pane {
+function paneDefaults(
+  type: PaneType,
+  id: string,
+  color: string,
+  settings?: AppSettings | null
+): Pane {
   const base: Pane = {
     id,
     name: type === 'shell' ? 'Shell' : type === 'ai_chat' ? 'AI Chat' : 'CLI Agent',
@@ -92,7 +106,7 @@ function paneDefaults(type: PaneType, id: string, color: string): Pane {
     return {
       ...base,
       shell: {
-        shellId: 'default',
+        shellId: settings?.defaultShellId ?? 'default',
         cwd: ''
       }
     }
@@ -102,8 +116,9 @@ function paneDefaults(type: PaneType, id: string, color: string): Pane {
     return {
       ...base,
       aiChat: {
-        providerId: 'default',
-        model: 'default',
+        providerId:
+          settings?.defaultProviderId ?? DEFAULT_SETTINGS.defaultProviderId ?? 'xai',
+        model: settings?.defaultModel ?? DEFAULT_SETTINGS.defaultModel ?? 'grok-2-latest',
         systemPrompt: '',
         threadId: createId('thread')
       }
@@ -142,7 +157,8 @@ function dirtyWorkspace(set: (partial: Partial<AppState>) => void, next: Workspa
  */
 function materializePreset(
   preset: LayoutPreset,
-  usedColors: string[] = []
+  usedColors: string[] = [],
+  settings?: AppSettings | null
 ): { layout: LayoutNode; panes: Record<string, Pane>; activePaneId: string } {
   const templates = preset.paneTemplates ?? [{ type: 'shell' as PaneType }]
   const idMap = new Map<string, string>()
@@ -154,7 +170,7 @@ function materializePreset(
     const paneId = createId('pane')
     const color = tpl.color ?? nextAgentColor(colors)
     colors.push(color)
-    const base = paneDefaults(tpl.type, paneId, color)
+    const base = paneDefaults(tpl.type, paneId, color, settings)
     const pane: Pane = {
       ...base,
       ...tpl,
@@ -165,12 +181,13 @@ function materializePreset(
     }
     // Ensure type-specific defaults when template only sets type
     if (pane.type === 'shell' && !pane.shell) {
-      pane.shell = { shellId: 'default', cwd: '' }
+      pane.shell = { shellId: settings?.defaultShellId ?? 'default', cwd: '' }
     }
     if (pane.type === 'ai_chat' && !pane.aiChat) {
       pane.aiChat = {
-        providerId: 'default',
-        model: 'default',
+        providerId:
+          settings?.defaultProviderId ?? DEFAULT_SETTINGS.defaultProviderId ?? 'xai',
+        model: settings?.defaultModel ?? DEFAULT_SETTINGS.defaultModel ?? 'grok-2-latest',
         systemPrompt: '',
         threadId: createId('thread')
       }
@@ -448,7 +465,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const usedColors = Object.values(ws.panes).map((p) => p.color)
     const paneId = createId('pane')
-    const pane = paneDefaults(type, paneId, nextAgentColor(usedColors))
+    const pane = paneDefaults(type, paneId, nextAgentColor(usedColors), get().settings)
     const paneCount = Object.keys(ws.panes).length
 
     let next: Workspace
@@ -562,7 +579,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const preset = findPreset(presetId, get().userPresets)
     if (!preset) return
 
-    const { layout, panes, activePaneId } = materializePreset(preset)
+    const { layout, panes, activePaneId } = materializePreset(
+      preset,
+      [],
+      get().settings
+    )
     const next: Workspace = {
       ...ws,
       panes,

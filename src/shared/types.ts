@@ -65,5 +65,17 @@ export interface AppSettings {
   themeId: string
   autosaveMs: number
   defaultWorkspaceId?: string
+  /** Default AI provider id (matches `providers[].id`). */
+  defaultProviderId?: string
+  /** Default model string for new AI chat panes. */
+  defaultModel?: string
   providers: Array<{ id: string; baseUrl?: string; label: string }>
+}
+
+/** Chat message roles for AI threads (persisted + IPC). */
+export type ChatRole = 'system' | 'user' | 'assistant'
+
+export interface ChatMessage {
+  role: ChatRole
+  content: string
 }

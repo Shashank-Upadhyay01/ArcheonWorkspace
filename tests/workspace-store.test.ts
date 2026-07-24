@@ -28,6 +28,7 @@ describe('getUserDataPaths', () => {
     expect(p.sessionsDir).toBe(path.join('/data/archeon', 'sessions'))
     expect(p.recoveryDir).toBe(path.join('/data/archeon', 'recovery'))
     expect(p.settingsPath).toBe(path.join('/data/archeon', 'settings.json'))
+    expect(p.secretsDir).toBe(path.join('/data/archeon', 'secrets'))
   })
 })
 

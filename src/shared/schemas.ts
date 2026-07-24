@@ -95,6 +95,8 @@ export const appSettingsSchema = z.object({
   themeId: z.string(),
   autosaveMs: z.number(),
   defaultWorkspaceId: z.string().optional(),
+  defaultProviderId: z.string().optional(),
+  defaultModel: z.string().optional(),
   providers: z.array(
     z.object({
       id: z.string(),

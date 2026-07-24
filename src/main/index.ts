@@ -5,6 +5,7 @@ import { createAutosave } from './autosave'
 import { registerIpcHandlers } from './ipc-handlers'
 import { getUserDataPaths } from './paths'
 import { PtyManager } from './pty-manager'
+import { SecureStore } from './secure-store'
 import { WorkspaceStore } from './workspace-store'
 
 let store: WorkspaceStore | null = null
@@ -100,8 +101,9 @@ app.whenReady().then(() => {
   const userData = app.getPath('userData')
   store = new WorkspaceStore(userData)
   ptyManager = new PtyManager()
-  const { sessionsDir } = getUserDataPaths(userData)
-  registerIpcHandlers({ store, pty: ptyManager, sessionsDir })
+  const { sessionsDir, secretsDir } = getUserDataPaths(userData)
+  const secrets = new SecureStore(secretsDir)
+  registerIpcHandlers({ store, pty: ptyManager, sessionsDir, secrets })
 
   const settings = store.getSettings()
   recoveryAutosave = createAutosave(writeRecoverySnapshot, settings.autosaveMs)

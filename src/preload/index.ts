@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
+import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
 
 export interface PtySpawnOptions {
   paneId: string
@@ -23,6 +23,30 @@ export interface PtyExitEvent {
 export interface ScrollbackKey {
   workspaceId: string
   paneId: string
+}
+
+export interface ChatThreadKey {
+  workspaceId: string
+  paneId: string
+}
+
+export interface ChatThread {
+  messages: ChatMessage[]
+}
+
+export interface AiChatRequest {
+  requestId: string
+  providerId: string
+  model: string
+  systemPrompt?: string
+  messages: ChatMessage[]
+}
+
+export interface AiChatChunkEvent {
+  requestId: string
+  text?: string
+  done?: boolean
+  error?: string
 }
 
 const archeonApi = {
@@ -83,7 +107,30 @@ const archeonApi = {
     saveScrollback: (key: ScrollbackKey & { text: string }): Promise<void> =>
       ipcRenderer.invoke(IpcChannels.sessionSaveScrollback, key),
     loadScrollback: (key: ScrollbackKey): Promise<string | null> =>
-      ipcRenderer.invoke(IpcChannels.sessionLoadScrollback, key)
+      ipcRenderer.invoke(IpcChannels.sessionLoadScrollback, key),
+    saveChat: (key: ChatThreadKey & { thread: ChatThread }): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.sessionSaveChat, key),
+    loadChat: (key: ChatThreadKey): Promise<ChatThread | null> =>
+      ipcRenderer.invoke(IpcChannels.sessionLoadChat, key)
+  },
+  secrets: {
+    set: (key: string, value: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.secretsSet, key, value),
+    has: (key: string): Promise<boolean> => ipcRenderer.invoke(IpcChannels.secretsHas, key),
+    delete: (key: string): Promise<void> => ipcRenderer.invoke(IpcChannels.secretsDelete, key)
+  },
+  ai: {
+    chat: (req: AiChatRequest): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IpcChannels.aiChat, req),
+    onChunk: (cb: (event: AiChatChunkEvent) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, payload: AiChatChunkEvent): void => {
+        cb(payload)
+      }
+      ipcRenderer.on(IpcChannels.aiChatChunk, handler)
+      return () => {
+        ipcRenderer.removeListener(IpcChannels.aiChatChunk, handler)
+      }
+    }
   },
   app: {
     /** Subscribe to main's pre-close flush request. Returns unsubscribe. */

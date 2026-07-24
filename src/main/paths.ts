@@ -7,6 +7,7 @@ export interface UserDataPaths {
   sessionsDir: string
   recoveryDir: string
   settingsPath: string
+  secretsDir: string
 }
 
 /** Resolve standard persistence paths under Electron `userData` (or a test root). */
@@ -17,6 +18,7 @@ export function getUserDataPaths(userData: string): UserDataPaths {
     presetsPath: path.join(userData, 'presets.json'),
     sessionsDir: path.join(userData, 'sessions'),
     recoveryDir: path.join(userData, 'recovery'),
-    settingsPath: path.join(userData, 'settings.json')
+    settingsPath: path.join(userData, 'settings.json'),
+    secretsDir: path.join(userData, 'secrets')
   }
 }

@@ -1,26 +1,56 @@
-import { ipcMain } from 'electron'
+import { ipcMain, type WebContents } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
+import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
+import { AIClient, AiClientError } from './ai-client'
 import type { PtyManager, PtySpawnOptions } from './pty-manager'
 import {
   loadScrollback,
   saveScrollback,
   ScrollbackPathError
 } from './session-scrollback'
+import {
+  ChatThreadPathError,
+  loadChatThread,
+  saveChatThread,
+  type ChatThread
+} from './session-chat'
+import {
+  apiKeySecretName,
+  SecretsUnavailableError,
+  type SecureStore
+} from './secure-store'
 import type { WorkspaceStore } from './workspace-store'
+
+export interface AiChatRequest {
+  requestId: string
+  providerId: string
+  model: string
+  systemPrompt?: string
+  messages: ChatMessage[]
+}
+
+export interface AiChatChunkEvent {
+  requestId: string
+  text?: string
+  done?: boolean
+  error?: string
+}
 
 export interface IpcHandlerDeps {
   store: WorkspaceStore
   pty: PtyManager
   sessionsDir: string
+  secrets: SecureStore
+  aiClient?: AIClient
 }
 
 /**
- * Register workspace + settings + PTY + session IPC handlers.
- * Call once after the store / PtyManager are constructed on app ready.
+ * Register workspace + settings + PTY + session + secrets + AI IPC handlers.
+ * Call once after the store / PtyManager / SecureStore are constructed on app ready.
  */
 export function registerIpcHandlers(deps: IpcHandlerDeps): void {
-  const { store, pty, sessionsDir } = deps
+  const { store, pty, sessionsDir, secrets } = deps
+  const aiClient = deps.aiClient ?? new AIClient()
 
   ipcMain.handle(IpcChannels.workspaceList, () => store.list())
 
@@ -129,4 +159,146 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       }
     }
   )
+
+  // ── Chat thread persistence ────────────────────────────────
+  ipcMain.handle(
+    IpcChannels.sessionSaveChat,
+    (_event, payload: { workspaceId: string; paneId: string; thread: ChatThread }) => {
+      if (!payload?.workspaceId || !payload?.paneId || !payload?.thread) return
+      try {
+        saveChatThread(
+          sessionsDir,
+          { workspaceId: payload.workspaceId, paneId: payload.paneId },
+          payload.thread
+        )
+      } catch (err) {
+        if (err instanceof ChatThreadPathError) return
+        throw err
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IpcChannels.sessionLoadChat,
+    (_event, payload: { workspaceId: string; paneId: string }) => {
+      if (!payload?.workspaceId || !payload?.paneId) return null
+      try {
+        return loadChatThread(sessionsDir, {
+          workspaceId: payload.workspaceId,
+          paneId: payload.paneId
+        })
+      } catch (err) {
+        if (err instanceof ChatThreadPathError) return null
+        throw err
+      }
+    }
+  )
+
+  // ── Secrets ────────────────────────────────────────────────
+  ipcMain.handle(IpcChannels.secretsSet, (_event, key: string, value: string) => {
+    if (typeof key !== 'string' || typeof value !== 'string') {
+      throw new Error('secrets:set requires string key and value')
+    }
+    try {
+      secrets.set(key, value)
+    } catch (err) {
+      throw serializeSecretError(err)
+    }
+  })
+
+  ipcMain.handle(IpcChannels.secretsHas, (_event, key: string) => {
+    if (typeof key !== 'string') return false
+    try {
+      return secrets.has(key)
+    } catch (err) {
+      throw serializeSecretError(err)
+    }
+  })
+
+  ipcMain.handle(IpcChannels.secretsDelete, (_event, key: string) => {
+    if (typeof key !== 'string') return
+    try {
+      secrets.delete(key)
+    } catch (err) {
+      throw serializeSecretError(err)
+    }
+  })
+
+  // ── AI chat streaming ──────────────────────────────────────
+  ipcMain.handle(IpcChannels.aiChat, async (event, req: AiChatRequest) => {
+    if (!req?.requestId || typeof req.requestId !== 'string') {
+      throw new Error('ai:chat requires requestId')
+    }
+    const sender = event.sender
+    const requestId = req.requestId
+    let terminalSent = false
+
+    const sendChunk = (payload: AiChatChunkEvent): void => {
+      if (sender.isDestroyed()) return
+      sender.send(IpcChannels.aiChatChunk, payload)
+      if (payload.done) terminalSent = true
+    }
+
+    try {
+      const providerId = typeof req.providerId === 'string' ? req.providerId : ''
+      const model = typeof req.model === 'string' ? req.model : ''
+      if (!providerId) throw new AiClientError('providerId is required')
+      if (!model) throw new AiClientError('model is required')
+
+      let apiKey: string | null
+      try {
+        apiKey = secrets.get(apiKeySecretName(providerId))
+      } catch (err) {
+        throw serializeSecretError(err)
+      }
+
+      if (!apiKey) {
+        throw new AiClientError(
+          'No API key configured for this provider. Open Settings and save an API key.'
+        )
+      }
+
+      const settings = store.getSettings()
+      const provider = settings.providers.find((p) => p.id === providerId)
+      const baseUrl = provider?.baseUrl
+      const messages = Array.isArray(req.messages) ? req.messages : []
+
+      for await (const text of aiClient.chatStream({
+        providerId,
+        model,
+        systemPrompt: typeof req.systemPrompt === 'string' ? req.systemPrompt : '',
+        messages,
+        apiKey,
+        baseUrl
+      })) {
+        sendChunk({ requestId, text })
+      }
+
+      sendChunk({ requestId, done: true })
+      return { ok: true as const }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (!terminalSent) {
+        sendChunk({ requestId, done: true, error: message })
+      }
+      throw err instanceof Error ? err : new Error(message)
+    }
+  })
+}
+
+/** Map secret errors to serializable Error with stable name in message. */
+function serializeSecretError(err: unknown): Error {
+  if (err instanceof SecretsUnavailableError) {
+    const e = new Error(err.message)
+    e.name = 'SecretsUnavailableError'
+    return e
+  }
+  if (err instanceof Error) return err
+  return new Error(String(err))
+}
+
+/** Exported for tests that need to drive chunk sends without full IPC. */
+export function sendAiChatChunk(sender: WebContents, payload: AiChatChunkEvent): void {
+  if (sender.isDestroyed()) return
+  sender.send(IpcChannels.aiChatChunk, payload)
 }

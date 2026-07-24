@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import EmptyWorkspace from './components/EmptyWorkspace'
 import DockLayout from './components/layout/DockLayout'
+import AiChatPane from './components/panes/AiChatPane'
 import ShellPane from './components/panes/ShellPane'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
@@ -13,14 +14,14 @@ function PaneBody({ pane, workspaceId }: { pane: Pane; workspaceId: string }): J
     return <ShellPane pane={pane} workspaceId={workspaceId} />
   }
 
+  if (pane.type === 'ai_chat') {
+    return <AiChatPane pane={pane} workspaceId={workspaceId} />
+  }
+
   return (
     <div className="pane-body-placeholder">
       <p className="pane-body-placeholder-meta">{pane.type.replace('_', ' ')}</p>
-      <p className="pane-body-placeholder-hint">
-        {pane.type === 'ai_chat'
-          ? 'AI chat stream will attach here later.'
-          : 'CLI agent process will attach here later.'}
-      </p>
+      <p className="pane-body-placeholder-hint">CLI agent process will attach here later.</p>
     </div>
   )
 }

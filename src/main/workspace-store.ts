@@ -34,7 +34,16 @@ export interface RecoverySnapshot {
 const DEFAULT_SETTINGS: AppSettings = {
   themeId: 'default',
   autosaveMs: 1000,
-  providers: []
+  defaultProviderId: 'xai',
+  defaultModel: 'grok-2-latest',
+  providers: [
+    { id: 'xai', label: 'xAI', baseUrl: 'https://api.x.ai/v1' },
+    {
+      id: 'openai-compatible',
+      label: 'OpenAI-compatible',
+      baseUrl: 'https://api.openai.com/v1'
+    }
+  ]
 }
 
 const SECRET_KEY_RE = /^(api[_-]?key|secret|token|password|authorization|auth|credential|private[_-]?key)$/i
@@ -143,16 +152,33 @@ export class WorkspaceStore {
   private loadSettings(): void {
     const raw = readJsonFile(this.paths.settingsPath)
     if (raw === null) {
-      this.settings = { ...DEFAULT_SETTINGS }
+      this.settings = {
+        ...DEFAULT_SETTINGS,
+        providers: DEFAULT_SETTINGS.providers.map((p) => ({ ...p }))
+      }
       this.activeId = undefined
       return
     }
     const parsed = appSettingsSchema.safeParse(raw)
     if (parsed.success) {
-      this.settings = parsed.data as AppSettings
+      const data = parsed.data as AppSettings
+      // Fill in built-in provider catalog when user settings have none yet
+      this.settings = {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        providers:
+          data.providers.length > 0
+            ? data.providers
+            : DEFAULT_SETTINGS.providers.map((p) => ({ ...p })),
+        defaultProviderId: data.defaultProviderId ?? DEFAULT_SETTINGS.defaultProviderId,
+        defaultModel: data.defaultModel ?? DEFAULT_SETTINGS.defaultModel
+      }
       this.activeId = this.settings.defaultWorkspaceId
     } else {
-      this.settings = { ...DEFAULT_SETTINGS }
+      this.settings = {
+        ...DEFAULT_SETTINGS,
+        providers: DEFAULT_SETTINGS.providers.map((p) => ({ ...p }))
+      }
       this.activeId = undefined
     }
   }

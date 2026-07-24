@@ -20,6 +20,8 @@ export const IpcChannels = {
   secretsSet: 'secrets:set',
   secretsHas: 'secrets:has',
   secretsDelete: 'secrets:delete',
+  sessionSaveChat: 'session:saveChat',
+  sessionLoadChat: 'session:loadChat',
   appReadyState: 'app:readyState',
   /** main → renderer: please flush dirty workspace before window closes */
   appBeforeQuitSave: 'app:before-quit-save',

@@ -1,4 +1,4 @@
-import type { AppSettings, LayoutPreset, Workspace } from '../shared/types'
+import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
 
 export interface WorkspaceSummary {
   id: string
@@ -27,6 +27,30 @@ export interface PtyExitEvent {
 export interface ScrollbackKey {
   workspaceId: string
   paneId: string
+}
+
+export interface ChatThreadKey {
+  workspaceId: string
+  paneId: string
+}
+
+export interface ChatThread {
+  messages: ChatMessage[]
+}
+
+export interface AiChatRequest {
+  requestId: string
+  providerId: string
+  model: string
+  systemPrompt?: string
+  messages: ChatMessage[]
+}
+
+export interface AiChatChunkEvent {
+  requestId: string
+  text?: string
+  done?: boolean
+  error?: string
 }
 
 export interface ArcheonApi {
@@ -65,6 +89,17 @@ export interface ArcheonApi {
   session: {
     saveScrollback(key: ScrollbackKey & { text: string }): Promise<void>
     loadScrollback(key: ScrollbackKey): Promise<string | null>
+    saveChat(key: ChatThreadKey & { thread: ChatThread }): Promise<void>
+    loadChat(key: ChatThreadKey): Promise<ChatThread | null>
+  }
+  secrets: {
+    set(key: string, value: string): Promise<void>
+    has(key: string): Promise<boolean>
+    delete(key: string): Promise<void>
+  }
+  ai: {
+    chat(req: AiChatRequest): Promise<{ ok: true }>
+    onChunk(cb: (event: AiChatChunkEvent) => void): () => void
   }
   app: {
     /** main → renderer: flush dirty state before window close. Returns unsubscribe. */
