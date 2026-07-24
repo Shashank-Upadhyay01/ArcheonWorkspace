@@ -82,6 +82,11 @@ export function splitNode(
  * Tabs with one remaining pane become a leaf. Returns null if the tree is empty.
  */
 export function closePane(root: LayoutNode, paneId: string): LayoutNode | null {
+  // No-op identity: missing pane must return the same root reference.
+  if (!nodeContainsPane(root, paneId)) {
+    return root
+  }
+
   function close(node: LayoutNode): LayoutNode | null {
     if (node.type === 'leaf') {
       return node.paneId === paneId ? null : node
@@ -89,7 +94,7 @@ export function closePane(root: LayoutNode, paneId: string): LayoutNode | null {
 
     if (node.type === 'tabs') {
       if (!node.tabs.includes(paneId)) {
-        return { type: 'tabs', active: node.active, tabs: [...node.tabs] }
+        return node
       }
       const tabs = node.tabs.filter((id) => id !== paneId)
       if (tabs.length === 0) return null
@@ -166,6 +171,21 @@ export function replaceLeafWithTabs(
   tabPaneIds: string[],
   activeIndex: number
 ): LayoutNode {
+  // Empty tab list: leave layout unchanged.
+  if (tabPaneIds.length === 0) {
+    return root
+  }
+
+  // No-op identity: only replace when a matching leaf exists.
+  function isLeaf(node: LayoutNode, id: string): boolean {
+    if (node.type === 'leaf') return node.paneId === id
+    if (node.type === 'tabs') return false
+    return node.children.some((c) => isLeaf(c, id))
+  }
+  if (!isLeaf(root, paneId)) {
+    return root
+  }
+
   const active = Math.max(0, Math.min(activeIndex, Math.max(0, tabPaneIds.length - 1)))
   const tabsNode: LayoutNode = {
     type: 'tabs',
@@ -184,7 +204,9 @@ export function replaceLeafWithTabs(
       type: 'split',
       direction: node.direction,
       sizes: [...node.sizes],
-      children: node.children.map(replace)
+      children: node.children.map((child) =>
+        isLeaf(child, paneId) ? replace(child) : child
+      )
     }
   }
 
