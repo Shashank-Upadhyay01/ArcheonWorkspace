@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { nextAgentColor } from '@shared/colors'
 import { createId } from '@shared/ids'
 import { createLeaf, splitNode } from '@shared/layout'
+import {
+  bumpSaveGeneration,
+  shouldClearDirtyAfterFlush
+} from '@shared/save-generation'
 import type { AppSettings, Pane, PaneType, Workspace } from '@shared/types'
 import type { WorkspaceSummary } from '../../../preload/index.d'
 import { getArcheonApi } from '../lib/ipc'
@@ -38,6 +42,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+/** Bumped on every dirtying mutation; flush only clears dirty if gen still matches. */
+let saveGeneration = 0
 
 function clearSaveTimer(): void {
   if (saveTimer !== null) {
@@ -46,6 +52,10 @@ function clearSaveTimer(): void {
   }
 }
 
+/**
+ * cwd: empty string means "resolve to homedir later" (PTY task).
+ * Renderer has no os.homedir(); main/Task 7 maps '' → home.
+ */
 function paneDefaults(type: PaneType, id: string, color: string): Pane {
   const base: Pane = {
     id,
@@ -59,7 +69,7 @@ function paneDefaults(type: PaneType, id: string, color: string): Pane {
       ...base,
       shell: {
         shellId: 'default',
-        cwd: '.'
+        cwd: ''
       }
     }
   }
@@ -82,7 +92,7 @@ function paneDefaults(type: PaneType, id: string, color: string): Pane {
       command: '',
       args: [],
       env: {},
-      cwd: '.'
+      cwd: ''
     }
   }
 }
@@ -146,6 +156,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async createWorkspace(name: string) {
     const api = getArcheonApi()
+    // Persist any dirty active workspace before switching away
+    await get().flushSave()
     const created = await api.workspace.create(name.trim() || 'Untitled')
     // Start empty so mission-control empty state CTAs are visible
     const empty = toEmptyWorkspace(created)
@@ -181,44 +193,60 @@ export const useAppStore = create<AppState>((set, get) => ({
     const trimmed = name.trim()
     if (!trimmed) return
 
+    // Always flush active dirty state first so rename never drops pending edits
+    await get().flushSave()
+
     const current = get().activeWorkspace
-    let target = current?.id === id ? current : await api.workspace.get(id)
+    const isActive = current?.id === id
+    let target = isActive ? current : await api.workspace.get(id)
     if (!target) return
 
     target = { ...target, name: trimmed }
     await api.workspace.save(target)
     const list = await api.workspace.list()
-    set({
-      workspaces: list,
-      activeWorkspace: get().activeWorkspace?.id === id ? target : get().activeWorkspace,
-      dirty: false,
-      autosaveStatus: 'saved'
-    })
+
+    if (isActive) {
+      set({
+        workspaces: list,
+        activeWorkspace: target,
+        dirty: false,
+        autosaveStatus: 'saved'
+      })
+    } else {
+      // Non-active rename: leave active dirty / autosave state intact
+      set({ workspaces: list })
+    }
   },
 
   async deleteWorkspace(id: string) {
     const api = getArcheonApi()
-    clearSaveTimer()
+    const wasActive = get().activeWorkspace?.id === id
+
+    // Flush dirty active workspace before delete (whether active or not)
+    await get().flushSave()
+
     await api.workspace.delete(id)
     const list = await api.workspace.list()
-    let nextActive: Workspace | null = null
-    if (get().activeWorkspace?.id === id) {
+
+    if (wasActive) {
+      let nextActive: Workspace | null = null
       if (list.length > 0) {
         nextActive = await api.workspace.get(list[0].id)
         if (nextActive) {
           await api.workspace.setActive(nextActive.id)
         }
       }
+      set({
+        workspaces: list,
+        activeWorkspace: nextActive,
+        dirty: false,
+        autosaveStatus: 'idle',
+        sidebarCollapsed: nextActive?.sidebarCollapsed ?? false
+      })
     } else {
-      nextActive = get().activeWorkspace
+      // Non-active delete: keep active dirty / autosave / workspace intact
+      set({ workspaces: list })
     }
-    set({
-      workspaces: list,
-      activeWorkspace: nextActive,
-      dirty: false,
-      autosaveStatus: 'idle',
-      sidebarCollapsed: nextActive?.sidebarCollapsed ?? false
-    })
   },
 
   setSidebarCollapsed(collapsed: boolean) {
@@ -232,6 +260,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   markDirty() {
     const ms = get().settings?.autosaveMs ?? DEFAULT_SETTINGS.autosaveMs
+    saveGeneration = bumpSaveGeneration(saveGeneration)
     set({ dirty: true, autosaveStatus: 'dirty' })
     clearSaveTimer()
     saveTimer = setTimeout(() => {
@@ -246,19 +275,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!ws || !get().dirty) {
       return
     }
+    const gen = saveGeneration
     set({ autosaveStatus: 'saving' })
     try {
       const api = getArcheonApi()
       await api.workspace.save(ws)
       const list = await api.workspace.list()
-      // Reload to pick up server-side updatedAt
-      const fresh = await api.workspace.get(ws.id)
-      set({
-        workspaces: list,
-        activeWorkspace: fresh ?? ws,
-        dirty: false,
-        autosaveStatus: 'saved'
-      })
+
+      if (shouldClearDirtyAfterFlush(gen, saveGeneration)) {
+        // No newer edits while save was in flight — safe to clear dirty
+        const fresh = await api.workspace.get(ws.id)
+        set({
+          workspaces: list,
+          activeWorkspace: fresh ?? ws,
+          dirty: false,
+          autosaveStatus: 'saved'
+        })
+      } else {
+        // Newer local edits exist; keep dirty and re-flush latest snapshot
+        set({
+          workspaces: list,
+          autosaveStatus: 'dirty'
+        })
+        void get().flushSave()
+      }
     } catch (err) {
       set({
         autosaveStatus: 'error',
@@ -294,6 +334,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
+    saveGeneration = bumpSaveGeneration(saveGeneration)
     set({ activeWorkspace: next, dirty: true, autosaveStatus: 'dirty' })
     // Persist promptly so pane creations survive refresh
     await get().flushSave()

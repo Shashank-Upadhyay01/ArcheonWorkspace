@@ -21,6 +21,22 @@ const archeonApi = {
   settings: {
     get: () => ipcRenderer.invoke(IpcChannels.settingsGet),
     set: (partial: Partial<AppSettings>) => ipcRenderer.invoke(IpcChannels.settingsSet, partial)
+  },
+  app: {
+    /** Subscribe to main's pre-close flush request. Returns unsubscribe. */
+    onBeforeQuitSave: (cb: () => void): (() => void) => {
+      const handler = (): void => {
+        cb()
+      }
+      ipcRenderer.on(IpcChannels.appBeforeQuitSave, handler)
+      return () => {
+        ipcRenderer.removeListener(IpcChannels.appBeforeQuitSave, handler)
+      }
+    },
+    /** Tell main that renderer flush finished so the window may close. */
+    ackBeforeQuitSave: (): void => {
+      ipcRenderer.send(IpcChannels.appBeforeQuitSaveDone)
+    }
   }
 }
 

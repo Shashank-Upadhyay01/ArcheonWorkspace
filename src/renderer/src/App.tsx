@@ -44,6 +44,7 @@ function PanePlaceholder(): JSX.Element {
 
 export default function App(): JSX.Element {
   const bootstrap = useAppStore((s) => s.bootstrap)
+  const flushSave = useAppStore((s) => s.flushSave)
   const ready = useAppStore((s) => s.ready)
   const error = useAppStore((s) => s.error)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
@@ -51,6 +52,24 @@ export default function App(): JSX.Element {
   useEffect(() => {
     void bootstrap()
   }, [bootstrap])
+
+  // Main sends app:before-quit-save on window close; flush then ack so close can proceed.
+  useEffect(() => {
+    const api = window.archeon
+    if (!api?.app?.onBeforeQuitSave) return
+
+    const unsubscribe = api.app.onBeforeQuitSave(() => {
+      void (async () => {
+        try {
+          await flushSave()
+        } finally {
+          api.app.ackBeforeQuitSave()
+        }
+      })()
+    })
+
+    return unsubscribe
+  }, [flushSave])
 
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
   const showEmpty = !activeWorkspace || paneCount === 0

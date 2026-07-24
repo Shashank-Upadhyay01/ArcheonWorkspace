@@ -1,11 +1,15 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { IpcChannels } from '../shared/ipc'
 import { createAutosave } from './autosave'
 import { registerIpcHandlers } from './ipc-handlers'
 import { WorkspaceStore } from './workspace-store'
 
 let store: WorkspaceStore | null = null
 let recoveryAutosave: ReturnType<typeof createAutosave> | null = null
+
+/** Max wait for renderer flushSave ack before force-closing the window. */
+const QUIT_SAVE_TIMEOUT_MS = 3000
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -26,6 +30,51 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // Flush renderer dirty workspace before the window actually closes.
+  // Flag prevents infinite close → preventDefault → close loops.
+  let allowClose = false
+  let saveInProgress = false
+
+  mainWindow.on('close', (event) => {
+    if (allowClose || mainWindow.isDestroyed()) {
+      return
+    }
+
+    // No renderer to talk to — allow default close
+    if (mainWindow.webContents.isDestroyed()) {
+      return
+    }
+
+    event.preventDefault()
+    if (saveInProgress) {
+      return
+    }
+    saveInProgress = true
+
+    const finish = (): void => {
+      if (allowClose) return
+      allowClose = true
+      saveInProgress = false
+      ipcMain.removeListener(IpcChannels.appBeforeQuitSaveDone, onDone)
+      clearTimeout(timeout)
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.close()
+      }
+    }
+
+    const onDone = (): void => {
+      finish()
+    }
+
+    const timeout = setTimeout(() => {
+      // Renderer hung or never loaded — do not block quit forever
+      finish()
+    }, QUIT_SAVE_TIMEOUT_MS)
+
+    ipcMain.once(IpcChannels.appBeforeQuitSaveDone, onDone)
+    mainWindow.webContents.send(IpcChannels.appBeforeQuitSave)
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {

@@ -26,7 +26,12 @@ export interface ArcheonApi {
     get(): Promise<AppSettings>
     set(partial: Partial<AppSettings>): Promise<AppSettings>
   }
-  on?: never
+  app: {
+    /** main → renderer: flush dirty state before window close. Returns unsubscribe. */
+    onBeforeQuitSave(cb: () => void): () => void
+    /** renderer → main: flush complete; close may proceed. */
+    ackBeforeQuitSave(): void
+  }
 }
 
 declare global {

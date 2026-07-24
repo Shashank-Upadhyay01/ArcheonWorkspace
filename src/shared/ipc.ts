@@ -19,6 +19,10 @@ export const IpcChannels = {
   secretsHas: 'secrets:has',
   secretsDelete: 'secrets:delete',
   appReadyState: 'app:readyState',
+  /** main → renderer: please flush dirty workspace before window closes */
+  appBeforeQuitSave: 'app:before-quit-save',
+  /** renderer → main: flush finished (or failed); close may proceed */
+  appBeforeQuitSaveDone: 'app:before-quit-save-done',
   exportWorkspace: 'workspace:export',
   importWorkspace: 'workspace:import'
 } as const
