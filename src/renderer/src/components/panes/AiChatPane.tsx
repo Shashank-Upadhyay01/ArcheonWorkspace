@@ -34,9 +34,18 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
   const streamAccRef = useRef('')
   const disposedRef = useRef(false)
 
-  // Load thread + key status on mount
+  // Load thread + key status whenever pane/workspace changes; always reset local UI state.
   useEffect(() => {
     disposedRef.current = false
+    setMessages([])
+    setStreamText('')
+    setStreaming(false)
+    setError(null)
+    setLoaded(false)
+    setHasKey(null)
+    streamAccRef.current = ''
+    requestIdRef.current = null
+
     let api: ReturnType<typeof getArcheonApi>
     try {
       api = getArcheonApi()
@@ -50,11 +59,9 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
       try {
         const thread = await api.session.loadChat({ workspaceId, paneId: pane.id })
         if (disposedRef.current) return
-        if (thread?.messages?.length) {
-          setMessages(thread.messages)
-        }
+        setMessages(thread?.messages ?? [])
       } catch {
-        /* best-effort */
+        if (!disposedRef.current) setMessages([])
       }
       try {
         const present = await api.secrets.has(apiKeySecretName(providerId))

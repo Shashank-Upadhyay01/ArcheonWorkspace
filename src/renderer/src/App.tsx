@@ -11,15 +11,15 @@ import { useAppStore } from './stores/app-store'
 
 function PaneBody({ pane, workspaceId }: { pane: Pane; workspaceId: string }): JSX.Element {
   if (pane.type === 'shell') {
-    return <ShellPane pane={pane} workspaceId={workspaceId} />
+    return <ShellPane key={pane.id} pane={pane} workspaceId={workspaceId} />
   }
 
   if (pane.type === 'ai_chat') {
-    return <AiChatPane pane={pane} workspaceId={workspaceId} />
+    return <AiChatPane key={pane.id} pane={pane} workspaceId={workspaceId} />
   }
 
   return (
-    <div className="pane-body-placeholder">
+    <div key={pane.id} className="pane-body-placeholder">
       <p className="pane-body-placeholder-meta">{pane.type.replace('_', ' ')}</p>
       <p className="pane-body-placeholder-hint">CLI agent process will attach here later.</p>
     </div>
@@ -49,7 +49,7 @@ function WorkspaceDock(): JSX.Element {
   const workspaceId = activeWorkspace?.id ?? ''
 
   const renderPane = useCallback(
-    (pane: Pane) => <PaneBody pane={pane} workspaceId={workspaceId} />,
+    (pane: Pane) => <PaneBody key={pane.id} pane={pane} workspaceId={workspaceId} />,
     [workspaceId]
   )
 

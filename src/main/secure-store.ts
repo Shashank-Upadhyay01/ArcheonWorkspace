@@ -74,16 +74,12 @@ export class SecureStore {
     }
   }
 
+  /**
+   * True only when `get(key)` would succeed with a non-null value
+   * (file present and decrypt works). Corrupt/undecryptable blobs → false.
+   */
   has(key: string): boolean {
-    this.assertAvailable()
-    const file = secretFilePath(this.secretsDir, key)
-    if (!fs.existsSync(file)) return false
-    try {
-      const st = fs.statSync(file)
-      return st.isFile() && st.size > 0
-    } catch {
-      return false
-    }
+    return this.get(key) !== null
   }
 
   delete(key: string): void {
