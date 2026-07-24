@@ -188,7 +188,8 @@ export class WorkspaceStore {
   }
 
   get(id: string): Workspace | null {
-    return this.workspaces.get(id) ?? null
+    const ws = this.workspaces.get(id)
+    return ws ? structuredClone(ws) : null
   }
 
   create(name: string): Workspace {
@@ -222,13 +223,12 @@ export class WorkspaceStore {
   }
 
   save(ws: Workspace): void {
-    const next: Workspace = {
+    // Parse result is the stored object (strips unknown keys)
+    const next = parseWorkspace({
       ...ws,
       updatedAt: this.now().toISOString(),
       panes: { ...ws.panes }
-    }
-    // Validate before writing
-    parseWorkspace(next)
+    })
     this.workspaces.set(next.id, next)
     atomicWriteJson(this.workspacePath(next.id), next)
   }

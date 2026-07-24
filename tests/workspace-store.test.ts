@@ -53,6 +53,27 @@ describe('WorkspaceStore', () => {
     expect(store.get(ws.id)?.name).toBe('Renamed')
   })
 
+  it('save strips unknown extra keys', () => {
+    const ws = store.create('Strip')
+    // @ts-expect-error intentional unknown field
+    ws.extraField = 'should-not-persist'
+    store.save(ws)
+    const got = store.get(ws.id)!
+    expect(got).not.toHaveProperty('extraField')
+    const paths = getUserDataPaths(dir)
+    const raw = JSON.parse(
+      fs.readFileSync(path.join(paths.workspacesDir, `${ws.id}.json`), 'utf8')
+    ) as Record<string, unknown>
+    expect(raw).not.toHaveProperty('extraField')
+  })
+
+  it('get returns an independent copy', () => {
+    const ws = store.create('Clone')
+    const a = store.get(ws.id)!
+    a.name = 'Mutated'
+    expect(store.get(ws.id)?.name).toBe('Clone')
+  })
+
   it('writes and reads recovery snapshot', () => {
     const ws = store.create('R')
     store.writeRecovery({ activeWorkspaceId: ws.id, workspaces: [ws] })
