@@ -1,0 +1,16 @@
+appId: com.archeon.workspace
+productName: Archeon Workspace
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - nsis
+    - portable
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development

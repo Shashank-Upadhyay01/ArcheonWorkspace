@@ -1,4 +1,13 @@
-
 .worktrees/
 .superpowers/
 
+node_modules
+out
+dist
+release
+*.log
+.DS_Store
+.env
+.env.*
+coverage
+*.tsbuildinfo

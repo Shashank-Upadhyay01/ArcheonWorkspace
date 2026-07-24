@@ -1,0 +1,16 @@
+:root {
+  --bg-canvas: #0e1116;
+  --bg-panel: #151a22;
+  --bg-elevated: #1c2330;
+  --border: #2a3344;
+  --text: #e8eef7;
+  --text-muted: #8b97a8;
+  --accent: #3dd6c6;
+  --accent-dim: #2a9e92;
+  --danger: #f07178;
+  --warning: #e6b450;
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius: 8px;
+  --sidebar-width: 240px;
+}
