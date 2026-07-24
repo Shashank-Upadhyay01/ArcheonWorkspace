@@ -44,6 +44,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
   const disposedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [exited, setExited] = useState<number | null>(null)
+  const [restartKey, setRestartKey] = useState(0)
 
   // Respond to store focusPane requests (sidebar / command palette / chrome click)
   useEffect(() => {
@@ -53,6 +54,8 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
 
   useEffect(() => {
     disposedRef.current = false
+    setError(null)
+    setExited(null)
     setPaneRuntimeStatus(pane.id, 'idle')
     const host = hostRef.current
     if (!host) return
@@ -72,11 +75,21 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
       fontSize: 13,
       lineHeight: 1.2,
       theme: {
-        background: '#0e1116',
-        foreground: '#e8eef7',
-        cursor: '#3dd6c6',
-        cursorAccent: '#0e1116',
-        selectionBackground: 'rgba(61, 214, 198, 0.28)',
+        background:
+          getComputedStyle(document.documentElement).getPropertyValue('--term-bg').trim() ||
+          '#0e1116',
+        foreground:
+          getComputedStyle(document.documentElement).getPropertyValue('--term-fg').trim() ||
+          '#e8eef7',
+        cursor:
+          getComputedStyle(document.documentElement).getPropertyValue('--term-cursor').trim() ||
+          '#3dd6c6',
+        cursorAccent:
+          getComputedStyle(document.documentElement).getPropertyValue('--term-bg').trim() ||
+          '#0e1116',
+        selectionBackground:
+          getComputedStyle(document.documentElement).getPropertyValue('--term-selection').trim() ||
+          'rgba(61, 214, 198, 0.28)',
         black: '#0e1116',
         red: '#f07178',
         green: '#3dd6c6',
@@ -245,20 +258,34 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
       termRef.current = null
       fitRef.current = null
     }
-    // Re-mount when identity of the pane shell binding changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: remount on pane/workspace id
-  }, [pane.id, workspaceId, pane.shell?.shellId, pane.shell?.cwd])
+    // Re-mount when identity of the pane shell binding changes or user restarts
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: remount on pane/workspace id / restart
+  }, [pane.id, workspaceId, pane.shell?.shellId, pane.shell?.cwd, restartKey])
 
   return (
     <div className="shell-pane">
       {error ? (
         <div className="shell-pane-banner shell-pane-banner--error" role="alert">
           {error}
+          <button
+            type="button"
+            className="shell-pane-restart"
+            onClick={() => setRestartKey((k) => k + 1)}
+          >
+            Restart shell
+          </button>
         </div>
       ) : null}
       {exited !== null ? (
         <div className="shell-pane-banner shell-pane-banner--exit">
-          Shell exited ({exited}). Close the pane or re-open a new shell.
+          Shell exited ({exited}).
+          <button
+            type="button"
+            className="shell-pane-restart"
+            onClick={() => setRestartKey((k) => k + 1)}
+          >
+            Restart shell
+          </button>
         </div>
       ) : null}
       <div className="shell-pane-term" ref={hostRef} />

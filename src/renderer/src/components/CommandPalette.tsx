@@ -35,9 +35,14 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
   const userPresets = useAppStore((s) => s.userPresets)
   const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
   const addPane = useAppStore((s) => s.addPane)
+  const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
   const applyPreset = useAppStore((s) => s.applyPreset)
   const selectWorkspace = useAppStore((s) => s.selectWorkspace)
   const focusPane = useAppStore((s) => s.focusPane)
+  const focusNextPane = useAppStore((s) => s.focusNextPane)
+  const focusPrevPane = useAppStore((s) => s.focusPrevPane)
+  const setTheme = useAppStore((s) => s.setTheme)
+  const settings = useAppStore((s) => s.settings)
   const toggleBroadcastMode = useAppStore((s) => s.toggleBroadcastMode)
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
   const exportWorkspace = useAppStore((s) => s.exportWorkspace)
@@ -78,6 +83,37 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
         group: 'Panes',
         keywords: 'agent',
         run: runAndClose(() => addPane('cli_agent'))
+      },
+      {
+        id: 'new-tab',
+        label: 'New tab next to focused pane',
+        group: 'Panes',
+        keywords: 'tabs tab group',
+        run: runAndClose(() => addPaneAsTab('shell'))
+      },
+      {
+        id: 'focus-next',
+        label: 'Focus next pane',
+        group: 'Focus',
+        keywords: 'cycle',
+        run: runAndClose(() => focusNextPane())
+      },
+      {
+        id: 'focus-prev',
+        label: 'Focus previous pane',
+        group: 'Focus',
+        keywords: 'cycle',
+        run: runAndClose(() => focusPrevPane())
+      },
+      {
+        id: 'theme-toggle',
+        label:
+          settings?.themeId === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+        group: 'App',
+        keywords: 'theme appearance light dark',
+        run: runAndClose(() =>
+          setTheme(settings?.themeId === 'light' ? 'default' : 'light')
+        )
       }
     )
 
@@ -157,9 +193,14 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
     userPresets,
     broadcastPaneIds,
     addPane,
+    addPaneAsTab,
     applyPreset,
     selectWorkspace,
     focusPane,
+    focusNextPane,
+    focusPrevPane,
+    setTheme,
+    settings,
     toggleBroadcastMode,
     setSettingsOpen,
     exportWorkspace,

@@ -10,6 +10,9 @@ export default function TitleBar(): JSX.Element {
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
   const exportWorkspace = useAppStore((s) => s.exportWorkspace)
   const importWorkspace = useAppStore((s) => s.importWorkspace)
+  const settings = useAppStore((s) => s.settings)
+  const setTheme = useAppStore((s) => s.setTheme)
+  const themeId = settings?.themeId === 'light' ? 'light' : 'default'
 
   const title = activeWorkspace?.name ?? 'Archeon Workspace'
 
@@ -63,6 +66,15 @@ export default function TitleBar(): JSX.Element {
             onClick={() => void importWorkspace()}
           >
             Import
+          </button>
+          <button
+            type="button"
+            className="titlebar-action"
+            aria-label={themeId === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+            title={themeId === 'light' ? 'Dark theme' : 'Light theme'}
+            onClick={() => void setTheme(themeId === 'light' ? 'default' : 'light')}
+          >
+            {themeId === 'light' ? '☾' : '☀'}
           </button>
           <button
             type="button"

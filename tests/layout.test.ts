@@ -11,7 +11,9 @@ import {
   builtinPresets,
   updateSplitSizes,
   remapLayoutIds,
-  setTabsActive
+  setTabsActive,
+  openAsTab,
+  reorderTabs
 } from '../src/shared/layout'
 import type { LayoutNode } from '../src/shared/types'
 
@@ -165,5 +167,28 @@ describe('layout engine', () => {
     const root = replaceLeafWithTabs(createLeaf('a'), 'a', ['a', 'b', 'c'], 0)
     const next = setTabsActive(root, 'b', 2)
     expect(next).toEqual({ type: 'tabs', active: 2, tabs: ['a', 'b', 'c'] })
+  })
+
+  it('openAsTab converts leaf to tabs with new pane selected', () => {
+    const root = createLeaf('a')
+    const next = openAsTab(root, 'a', 'b')
+    expect(next).toEqual({ type: 'tabs', active: 1, tabs: ['a', 'b'] })
+  })
+
+  it('openAsTab appends to existing tabs group', () => {
+    let root = openAsTab(createLeaf('a'), 'a', 'b')
+    root = openAsTab(root, 'a', 'c')
+    expect(root).toEqual({ type: 'tabs', active: 2, tabs: ['a', 'b', 'c'] })
+  })
+
+  it('openAsTab missing anchor returns same root', () => {
+    const root = createLeaf('a')
+    expect(openAsTab(root, 'missing', 'b')).toBe(root)
+  })
+
+  it('reorderTabs moves a tab and keeps active pane', () => {
+    const root = replaceLeafWithTabs(createLeaf('a'), 'a', ['a', 'b', 'c'], 1)
+    const next = reorderTabs(root, 'a', 0, 2)
+    expect(next).toEqual({ type: 'tabs', active: 0, tabs: ['b', 'c', 'a'] })
   })
 })

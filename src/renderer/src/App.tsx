@@ -29,6 +29,7 @@ function WorkspaceDock(): JSX.Element {
   const setLayout = useAppStore((s) => s.setLayout)
   const focusPane = useAppStore((s) => s.focusPane)
   const addPane = useAppStore((s) => s.addPane)
+  const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
 
   const onChangeLayout = useCallback(
     (layout: LayoutNode) => {
@@ -70,6 +71,14 @@ function WorkspaceDock(): JSX.Element {
             onClick={() => void addPane('cli_agent')}
           >
             + CLI
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            title="New tab next to the focused pane"
+            onClick={() => void addPaneAsTab('shell')}
+          >
+            + Tab
           </button>
         </div>
       </div>
@@ -115,17 +124,40 @@ export default function App(): JSX.Element {
     return unsubscribe
   }, [flushSave])
 
-  // Ctrl+K / Cmd+K toggles command palette
+  const focusNextPane = useAppStore((s) => s.focusNextPane)
+  const focusPrevPane = useAppStore((s) => s.focusPrevPane)
+  const addPaneAsTabGlobal = useAppStore((s) => s.addPaneAsTab)
+
+  // Global shortcuts: Ctrl+K palette, Ctrl+] / [ focus cycle, Ctrl+T new tab
+  // These use modifiers so they are safe while typing in terminals/xterm.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod || e.altKey) return
+
+      if (e.key === 'k' || e.key === 'K') {
         e.preventDefault()
         setPaletteOpen((open) => !open)
+        return
+      }
+      if (e.key === ']' || e.key === '}') {
+        e.preventDefault()
+        focusNextPane()
+        return
+      }
+      if (e.key === '[' || e.key === '{') {
+        e.preventDefault()
+        focusPrevPane()
+        return
+      }
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault()
+        void addPaneAsTabGlobal('shell')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [focusNextPane, focusPrevPane, addPaneAsTabGlobal])
 
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
   const showEmpty = !activeWorkspace || paneCount === 0

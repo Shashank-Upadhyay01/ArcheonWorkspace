@@ -6,8 +6,11 @@ import {
   closePane as closePaneInTree,
   collectPaneIds,
   createLeaf,
+  openAsTab,
+  orderedPaneIds,
   placeholderPaneId,
   remapLayoutIds,
+  reorderTabs,
   splitNode
 } from '@shared/layout'
 import {
@@ -74,12 +77,18 @@ interface AppState {
   markDirty: () => void
   flushSave: () => Promise<void>
   addPane: (type: PaneType, direction?: 'h' | 'v', anchorPaneId?: string) => Promise<void>
+  /** Create a new pane as a tab next to the anchor (active pane by default). */
+  addPaneAsTab: (type: PaneType, anchorPaneId?: string) => Promise<void>
   closePane: (id: string) => Promise<void>
   renamePane: (id: string, name: string) => void
   setPaneColor: (id: string, color: string) => void
   setLayout: (layout: LayoutNode) => void
   focusPane: (id: string) => void
+  focusNextPane: () => void
+  focusPrevPane: () => void
+  reorderPaneTabs: (paneIdInGroup: string, fromIndex: number, toIndex: number) => void
   applyPreset: (presetId: string) => Promise<void>
+  setTheme: (themeId: 'default' | 'light') => Promise<void>
   saveUserPreset: (name: string) => Promise<void>
   refreshUserPresets: () => Promise<void>
   refreshUserProfiles: () => Promise<void>
@@ -357,6 +366,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ready: true,
         error: null
       })
+      document.documentElement.dataset.theme =
+        settings.themeId === 'light' ? 'light' : 'dark'
     } catch (err) {
       set({
         ready: true,
@@ -795,10 +806,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } else {
       const anchor = anchorPaneId ?? ws.activePaneId ?? Object.keys(ws.panes)[0]
+      let layout = splitNode(ws.layout, anchor, direction, paneId)
+      // If split was a no-op (anchor missing), fall back to first layout pane
+      if (layout === ws.layout) {
+        const ids = orderedPaneIds(ws.layout)
+        const fallback = ids[0]
+        if (fallback) {
+          layout = splitNode(ws.layout, fallback, direction, paneId)
+        }
+      }
       next = {
         ...ws,
         panes: { ...ws.panes, [paneId]: pane },
-        layout: splitNode(ws.layout, anchor, direction, paneId),
+        layout,
         activePaneId: paneId
       }
     }
@@ -806,6 +826,58 @@ export const useAppStore = create<AppState>((set, get) => ({
     dirtyWorkspace(set, get, next)
     // Persist promptly so pane creations survive refresh
     await get().flushSave()
+  },
+
+  async addPaneAsTab(type: PaneType, anchorPaneId?: string) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+
+    const usedColors = Object.values(ws.panes).map((p) => p.color)
+    const paneId = createId('pane')
+    const pane = paneDefaults(type, paneId, nextAgentColor(usedColors), get().settings)
+    const paneCount = Object.keys(ws.panes).length
+
+    if (paneCount === 0) {
+      const next: Workspace = {
+        ...ws,
+        panes: { [paneId]: pane },
+        layout: createLeaf(paneId),
+        activePaneId: paneId
+      }
+      dirtyWorkspace(set, get, next)
+      await get().flushSave()
+      return
+    }
+
+    const anchor = anchorPaneId ?? ws.activePaneId ?? Object.keys(ws.panes)[0]
+    let layout = openAsTab(ws.layout, anchor, paneId)
+    if (layout === ws.layout) {
+      const ids = orderedPaneIds(ws.layout)
+      const fallback = ids[0]
+      if (fallback) layout = openAsTab(ws.layout, fallback, paneId)
+    }
+    // If still no-op, split instead of failing silently
+    if (layout === ws.layout) {
+      await get().addPane(type, 'h', anchor)
+      return
+    }
+
+    const next: Workspace = {
+      ...ws,
+      panes: { ...ws.panes, [paneId]: pane },
+      layout,
+      activePaneId: paneId
+    }
+    dirtyWorkspace(set, get, next)
+    await get().flushSave()
+  },
+
+  reorderPaneTabs(paneIdInGroup: string, fromIndex: number, toIndex: number) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const layout = reorderTabs(ws.layout, paneIdInGroup, fromIndex, toIndex)
+    if (layout === ws.layout) return
+    dirtyWorkspace(set, get, { ...ws, layout })
   },
 
   async closePane(id: string) {
@@ -898,6 +970,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ focusRequest: { paneId: id, seq } })
   },
 
+  focusNextPane() {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const ids = orderedPaneIds(ws.layout)
+    if (ids.length === 0) return
+    const current = ws.activePaneId ?? ids[0]
+    const idx = Math.max(0, ids.indexOf(current))
+    const nextId = ids[(idx + 1) % ids.length]
+    get().focusPane(nextId)
+  },
+
+  focusPrevPane() {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const ids = orderedPaneIds(ws.layout)
+    if (ids.length === 0) return
+    const current = ws.activePaneId ?? ids[0]
+    const idx = Math.max(0, ids.indexOf(current))
+    const nextId = ids[(idx - 1 + ids.length) % ids.length]
+    get().focusPane(nextId)
+  },
+
+  async setTheme(themeId: 'default' | 'light') {
+    await get().updateSettings({ themeId })
+    document.documentElement.dataset.theme = themeId === 'light' ? 'light' : 'dark'
+  },
+
   async applyPreset(presetId: string) {
     const ws = get().activeWorkspace
     if (!ws) return
@@ -942,5 +1041,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const api = getArcheonApi()
     const settings = await api.settings.set(partial)
     set({ settings })
+    if (partial.themeId !== undefined) {
+      document.documentElement.dataset.theme =
+        settings.themeId === 'light' ? 'light' : 'dark'
+    }
   }
 }))

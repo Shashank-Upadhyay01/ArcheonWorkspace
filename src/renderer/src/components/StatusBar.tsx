@@ -29,8 +29,23 @@ export default function StatusBar(): JSX.Element {
   const error = useAppStore((s) => s.error)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
   const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
+  const settings = useAppStore((s) => s.settings)
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
   const broadcastCount = broadcastPaneIds.length
+  const activePane = activeWorkspace?.activePaneId
+    ? activeWorkspace.panes[activeWorkspace.activePaneId]
+    : null
+
+  let contextLabel = ''
+  if (activePane?.type === 'shell') {
+    const shellId = activePane.shell?.shellId || settings?.defaultShellId || 'default'
+    const cwd = activePane.shell?.cwd || '~'
+    contextLabel = `${shellId} · ${cwd || '~'}`
+  } else if (activePane?.type === 'ai_chat') {
+    contextLabel = `${activePane.aiChat?.providerId ?? 'ai'} · ${activePane.aiChat?.model ?? 'model'}`
+  } else if (activePane?.type === 'cli_agent') {
+    contextLabel = activePane.cli?.command || 'cli'
+  }
 
   return (
     <footer className="statusbar" role="contentinfo">
@@ -56,6 +71,12 @@ export default function StatusBar(): JSX.Element {
             {paneCount} pane{paneCount === 1 ? '' : 's'}
           </span>
         ) : null}
+        {activePane ? (
+          <span className="statusbar-meta" title={activePane.name}>
+            {activePane.name}
+            {contextLabel ? ` · ${contextLabel}` : ''}
+          </span>
+        ) : null}
         {broadcastCount > 0 ? (
           <span
             className="statusbar-pill statusbar-pill--broadcast"
@@ -68,6 +89,9 @@ export default function StatusBar(): JSX.Element {
       <div className="statusbar-right">
         <span className="statusbar-meta" title="Command palette">
           Ctrl+K
+        </span>
+        <span className="statusbar-meta" title="Focus next / previous pane">
+          Ctrl+] / [
         </span>
         <span className="statusbar-meta">{platformLabel()}</span>
         <span className="statusbar-meta statusbar-meta--accent">Archeon Workspace</span>

@@ -32,6 +32,7 @@ export default function PaneChrome({
   const setPaneColor = useAppStore((s) => s.setPaneColor)
   const closePane = useAppStore((s) => s.closePane)
   const addPane = useAppStore((s) => s.addPane)
+  const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(pane.name)
@@ -181,6 +182,18 @@ export default function PaneChrome({
                   }}
                 >
                   Split down
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="pane-chrome-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    void addPaneAsTab(pane.type, pane.id)
+                  }}
+                >
+                  New tab here
                 </button>
                 <button
                   type="button"

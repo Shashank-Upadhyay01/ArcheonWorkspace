@@ -285,6 +285,89 @@ export function setTabsActive(
 }
 
 /**
+ * Open `newPaneId` as a tab next to `anchorPaneId`.
+ * - Leaf anchor → becomes a tabs group `[anchor, new]`.
+ * - Tabs group containing anchor → appends `newPaneId` and selects it.
+ * No-op (same root reference) if anchor is missing or new id already in group.
+ */
+export function openAsTab(
+  root: LayoutNode,
+  anchorPaneId: string,
+  newPaneId: string
+): LayoutNode {
+  if (!nodeContainsPane(root, anchorPaneId)) return root
+  if (anchorPaneId === newPaneId) return root
+
+  function replace(node: LayoutNode): LayoutNode {
+    if (node.type === 'leaf') {
+      if (node.paneId !== anchorPaneId) return node
+      return { type: 'tabs', active: 1, tabs: [anchorPaneId, newPaneId] }
+    }
+    if (node.type === 'tabs') {
+      if (!node.tabs.includes(anchorPaneId)) return node
+      if (node.tabs.includes(newPaneId)) return node
+      const tabs = [...node.tabs, newPaneId]
+      return { type: 'tabs', active: tabs.length - 1, tabs }
+    }
+    return {
+      type: 'split',
+      direction: node.direction,
+      sizes: [...node.sizes],
+      children: node.children.map(replace)
+    }
+  }
+
+  return replace(root)
+}
+
+/**
+ * Reorder tabs in the group that contains `paneIdInGroup`.
+ * No-op (same root) if indices are invalid or group is missing.
+ */
+export function reorderTabs(
+  root: LayoutNode,
+  paneIdInGroup: string,
+  fromIndex: number,
+  toIndex: number
+): LayoutNode {
+  if (fromIndex === toIndex) return root
+
+  function replace(node: LayoutNode): LayoutNode {
+    if (node.type === 'leaf') return node
+    if (node.type === 'tabs') {
+      if (!node.tabs.includes(paneIdInGroup)) return node
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= node.tabs.length ||
+        toIndex >= node.tabs.length
+      ) {
+        return node
+      }
+      const tabs = [...node.tabs]
+      const [moved] = tabs.splice(fromIndex, 1)
+      tabs.splice(toIndex, 0, moved)
+      const activeId = node.tabs[node.active]
+      const active = Math.max(0, tabs.indexOf(activeId ?? moved))
+      return { type: 'tabs', active, tabs }
+    }
+    return {
+      type: 'split',
+      direction: node.direction,
+      sizes: [...node.sizes],
+      children: node.children.map(replace)
+    }
+  }
+
+  return replace(root)
+}
+
+/** All pane ids in document order (depth-first). */
+export function orderedPaneIds(root: LayoutNode): string[] {
+  return collectPaneIds(root)
+}
+
+/**
  * Remap leaf/tabs pane ids via `idMap`. Unmapped ids stay as-is.
  */
 export function remapLayoutIds(

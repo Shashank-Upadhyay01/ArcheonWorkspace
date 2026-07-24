@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme='dark'] {
   --bg-canvas: #0e1116;
   --bg-panel: #151a22;
   --bg-elevated: #1c2330;
@@ -13,4 +14,36 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius: 8px;
   --sidebar-width: 240px;
+  --term-bg: #0e1116;
+  --term-fg: #e8eef7;
+  --term-cursor: #3dd6c6;
+  --term-selection: rgba(61, 214, 198, 0.28);
+}
+
+:root[data-theme='light'] {
+  --bg-canvas: #f4f6f9;
+  --bg-panel: #ffffff;
+  --bg-elevated: #eef2f7;
+  --border: #d0d8e4;
+  --text: #1a2332;
+  --text-muted: #5c6b7e;
+  --accent: #0d9f90;
+  --accent-dim: #0a7a6f;
+  --danger: #c23b44;
+  --warning: #b8860b;
+  --term-bg: #f8fafc;
+  --term-fg: #1a2332;
+  --term-cursor: #0d9f90;
+  --term-selection: rgba(13, 159, 144, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
