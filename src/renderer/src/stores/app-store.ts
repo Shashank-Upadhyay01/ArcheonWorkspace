@@ -14,7 +14,9 @@ import {
   bumpSaveGeneration,
   shouldClearDirtyAfterFlush
 } from '@shared/save-generation'
+import { parseCliDefaults } from '@shared/profiles'
 import type {
+  AgentProfile,
   AppSettings,
   LayoutNode,
   LayoutPreset,
@@ -32,6 +34,8 @@ interface AppState {
   activeWorkspace: Workspace | null
   settings: AppSettings | null
   userPresets: LayoutPreset[]
+  /** User-saved agent profiles (built-ins live in shared/profiles). */
+  userProfiles: AgentProfile[]
   sidebarCollapsed: boolean
   dirty: boolean
   autosaveStatus: AutosaveStatus
@@ -56,6 +60,15 @@ interface AppState {
   applyPreset: (presetId: string) => Promise<void>
   saveUserPreset: (name: string) => Promise<void>
   refreshUserPresets: () => Promise<void>
+  refreshUserProfiles: () => Promise<void>
+  upsertProfile: (profile: AgentProfile) => Promise<void>
+  deleteProfile: (id: string) => Promise<void>
+  /** Apply a profile's defaults onto an existing cli_agent pane (or create one). */
+  applyProfile: (profile: AgentProfile, paneId?: string) => Promise<void>
+  updatePaneCli: (
+    paneId: string,
+    partial: Partial<NonNullable<Pane['cli']>> & { profileId?: string; name?: string; color?: string }
+  ) => void
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>
 }
 
@@ -252,6 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeWorkspace: null,
   settings: null,
   userPresets: [],
+  userProfiles: [],
   sidebarCollapsed: false,
   dirty: false,
   autosaveStatus: 'idle',
@@ -261,10 +275,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   async bootstrap() {
     try {
       const api = getArcheonApi()
-      const [list, settings, userPresets] = await Promise.all([
+      const [list, settings, userPresets, userProfiles] = await Promise.all([
         api.workspace.list(),
         api.settings.get(),
-        api.presets.list()
+        api.presets.list(),
+        api.profiles.list()
       ])
       let active: Workspace | null = null
       const activeId = settings.defaultWorkspaceId
@@ -281,6 +296,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         workspaces: list,
         settings,
         userPresets,
+        userProfiles,
         activeWorkspace: active,
         sidebarCollapsed: active?.sidebarCollapsed ?? false,
         ready: true,
@@ -304,6 +320,131 @@ export const useAppStore = create<AppState>((set, get) => ({
     const api = getArcheonApi()
     const userPresets = await api.presets.list()
     set({ userPresets })
+  },
+
+  async refreshUserProfiles() {
+    const api = getArcheonApi()
+    const userProfiles = await api.profiles.list()
+    set({ userProfiles })
+  },
+
+  async upsertProfile(profile: AgentProfile) {
+    const api = getArcheonApi()
+    const userProfiles = await api.profiles.upsert(profile)
+    set({ userProfiles })
+  },
+
+  async deleteProfile(id: string) {
+    const api = getArcheonApi()
+    const userProfiles = await api.profiles.delete(id)
+    set({ userProfiles })
+  },
+
+  async applyProfile(profile: AgentProfile, paneId?: string) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+
+    const defaults = parseCliDefaults(profile.defaults)
+    const targetId =
+      paneId ??
+      (ws.activePaneId && ws.panes[ws.activePaneId]?.type === 'cli_agent'
+        ? ws.activePaneId
+        : undefined)
+
+    if (targetId && ws.panes[targetId]?.type === 'cli_agent') {
+      const pane = ws.panes[targetId]
+      const next: Workspace = {
+        ...ws,
+        panes: {
+          ...ws.panes,
+          [targetId]: {
+            ...pane,
+            name: profile.name,
+            color: profile.color,
+            profileId: profile.id,
+            cli: {
+              command: defaults.command,
+              args: [...defaults.args],
+              env: { ...defaults.env },
+              cwd: defaults.cwd,
+              lastExitCode: pane.cli?.lastExitCode ?? null
+            }
+          }
+        }
+      }
+      dirtyWorkspace(set, next)
+      await get().flushSave()
+      return
+    }
+
+    // Create a new cli_agent pane pre-filled from the profile
+    const usedColors = Object.values(ws.panes).map((p) => p.color)
+    const newId = createId('pane')
+    const pane: Pane = {
+      id: newId,
+      name: profile.name,
+      color: profile.color || nextAgentColor(usedColors),
+      type: 'cli_agent',
+      profileId: profile.id,
+      cli: {
+        command: defaults.command,
+        args: [...defaults.args],
+        env: { ...defaults.env },
+        cwd: defaults.cwd
+      }
+    }
+    const paneCount = Object.keys(ws.panes).length
+    let next: Workspace
+    if (paneCount === 0) {
+      next = {
+        ...ws,
+        panes: { [newId]: pane },
+        layout: createLeaf(newId),
+        activePaneId: newId
+      }
+    } else {
+      const anchor = ws.activePaneId ?? Object.keys(ws.panes)[0]
+      next = {
+        ...ws,
+        panes: { ...ws.panes, [newId]: pane },
+        layout: splitNode(ws.layout, anchor, 'h', newId),
+        activePaneId: newId
+      }
+    }
+    dirtyWorkspace(set, next)
+    await get().flushSave()
+  },
+
+  updatePaneCli(paneId, partial) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[paneId]) return
+    const pane = ws.panes[paneId]
+    if (pane.type !== 'cli_agent') return
+
+    const { profileId, name, color, ...cliPartial } = partial
+    const nextCli = {
+      command: pane.cli?.command ?? '',
+      args: pane.cli?.args ?? [],
+      env: pane.cli?.env ?? {},
+      cwd: pane.cli?.cwd ?? '',
+      lastExitCode: pane.cli?.lastExitCode,
+      ...cliPartial
+    }
+    const next: Workspace = {
+      ...ws,
+      panes: {
+        ...ws.panes,
+        [paneId]: {
+          ...pane,
+          ...(name !== undefined ? { name } : {}),
+          ...(color !== undefined ? { color } : {}),
+          ...(profileId !== undefined ? { profileId } : {}),
+          cli: nextCli
+        }
+      }
+    }
+    dirtyWorkspace(set, next)
+    get().markDirty()
   },
 
   async createWorkspace(name: string) {

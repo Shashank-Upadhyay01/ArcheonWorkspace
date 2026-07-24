@@ -31,7 +31,11 @@ export const IpcChannels = {
   importWorkspace: 'workspace:import',
   presetsList: 'presets:list',
   presetsSave: 'presets:save',
-  presetsUpsert: 'presets:upsert'
+  presetsUpsert: 'presets:upsert',
+  profilesList: 'profiles:list',
+  profilesSave: 'profiles:save',
+  profilesUpsert: 'profiles:upsert',
+  profilesDelete: 'profiles:delete'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

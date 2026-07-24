@@ -7,10 +7,16 @@ import { IpcChannels } from '../shared/ipc'
 
 export interface PtySpawnOptions {
   paneId: string
-  shellId: string
+  /** Platform shell id when not using a custom command. */
+  shellId?: string
   cwd: string
   cols: number
   rows: number
+  /** Custom executable (CLI agent). When set (non-empty), overrides shellId. */
+  command?: string
+  args?: string[]
+  /** Extra env vars merged over process.env (values overwrite). */
+  env?: Record<string, string>
 }
 
 export interface PtySpawnResult {
@@ -43,9 +49,41 @@ export function resolveShell(
   return { file, args: ['-l'] }
 }
 
+/**
+ * Resolve executable + args: custom `command` wins when non-empty;
+ * otherwise platform shell via `shellId` (default: `default`).
+ */
+export function resolveSpawnTarget(
+  opts: Pick<PtySpawnOptions, 'command' | 'args' | 'shellId'>,
+  platform: NodeJS.Platform = process.platform
+): { file: string; args: string[] } {
+  const command = opts.command?.trim()
+  if (command) {
+    return { file: command, args: Array.isArray(opts.args) ? [...opts.args] : [] }
+  }
+  return resolveShell(opts.shellId || 'default', platform)
+}
+
 /** Resolve spawn cwd: empty/whitespace → homedir. */
 export function resolveCwd(cwd: string, homedir: string = os.homedir()): string {
   return cwd && cwd.trim() !== '' ? cwd : homedir
+}
+
+/** Merge process env with optional overrides (string values only). */
+export function mergeEnv(
+  base: NodeJS.ProcessEnv,
+  overrides?: Record<string, string>
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(base)) {
+    if (typeof v === 'string') out[k] = v
+  }
+  if (overrides) {
+    for (const [k, v] of Object.entries(overrides)) {
+      if (typeof v === 'string') out[k] = v
+    }
+  }
+  return out
 }
 
 function broadcast(channel: string, payload: unknown): void {
@@ -65,10 +103,11 @@ export class PtyManager {
 
   spawn(opts: PtySpawnOptions): PtySpawnResult {
     const sessionId = createId('pty')
-    const { file, args } = resolveShell(opts.shellId, process.platform)
+    const { file, args } = resolveSpawnTarget(opts, process.platform)
     const cwd = resolveCwd(opts.cwd)
     const cols = Math.max(2, opts.cols || 80)
     const rows = Math.max(1, opts.rows || 24)
+    const env = mergeEnv(process.env, opts.env)
 
     let term: IPty
     try {
@@ -77,13 +116,13 @@ export class PtyManager {
         cols,
         rows,
         cwd,
-        env: process.env as Record<string, string>
+        env
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const payload: PtyErrorPayload = {
         code: 'SPAWN_FAILED',
-        message: `Failed to spawn shell "${file}": ${message}`,
+        message: `Failed to spawn "${file}": ${message}`,
         paneId: opts.paneId,
         sessionId
       }

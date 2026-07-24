@@ -1,6 +1,12 @@
 import { ipcMain, type WebContents } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
+import type {
+  AgentProfile,
+  AppSettings,
+  ChatMessage,
+  LayoutPreset,
+  Workspace
+} from '../shared/types'
 import { AIClient, AiClientError } from './ai-client'
 import type { PtyManager, PtySpawnOptions } from './pty-manager'
 import {
@@ -97,6 +103,19 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   ipcMain.handle(IpcChannels.presetsUpsert, (_event, preset: LayoutPreset) =>
     store.upsertPreset(preset)
   )
+
+  // ── Agent profiles (user-owned; built-ins live in renderer/shared) ──
+  ipcMain.handle(IpcChannels.profilesList, () => store.loadProfiles())
+
+  ipcMain.handle(IpcChannels.profilesSave, (_event, profiles: AgentProfile[]) =>
+    store.saveProfiles(profiles)
+  )
+
+  ipcMain.handle(IpcChannels.profilesUpsert, (_event, profile: AgentProfile) =>
+    store.upsertProfile(profile)
+  )
+
+  ipcMain.handle(IpcChannels.profilesDelete, (_event, id: string) => store.deleteProfile(id))
 
   // ── PTY ────────────────────────────────────────────────────
   ipcMain.handle(IpcChannels.ptySpawn, (_event, opts: PtySpawnOptions) => pty.spawn(opts))

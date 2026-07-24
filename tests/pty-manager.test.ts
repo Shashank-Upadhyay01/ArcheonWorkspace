@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import path from 'path'
-import { resolveShell, resolveCwd } from '../src/main/pty-manager'
+import {
+  resolveShell,
+  resolveCwd,
+  resolveSpawnTarget,
+  mergeEnv
+} from '../src/main/pty-manager'
 import {
   capScrollbackText,
   scrollbackPath,
@@ -58,6 +63,44 @@ describe('resolveCwd', () => {
 
   it('returns provided non-empty cwd', () => {
     expect(resolveCwd('/tmp/project', '/home/user')).toBe('/tmp/project')
+  })
+})
+
+describe('resolveSpawnTarget', () => {
+  it('prefers custom command + args over shellId', () => {
+    expect(
+      resolveSpawnTarget({ command: 'claude', args: ['--dangerously-skip-permissions'], shellId: 'default' }, 'win32')
+    ).toEqual({
+      file: 'claude',
+      args: ['--dangerously-skip-permissions']
+    })
+  })
+
+  it('trims command and falls back to shell when empty', () => {
+    expect(resolveSpawnTarget({ command: '  ', shellId: 'cmd' }, 'win32')).toEqual({
+      file: 'cmd.exe',
+      args: []
+    })
+  })
+
+  it('defaults args to empty array for custom command', () => {
+    expect(resolveSpawnTarget({ command: 'aider' }, 'linux')).toEqual({
+      file: 'aider',
+      args: []
+    })
+  })
+})
+
+describe('mergeEnv', () => {
+  it('overlays string overrides onto base env', () => {
+    const merged = mergeEnv({ PATH: '/bin', HOME: '/home/u', EMPTY: undefined }, {
+      PATH: '/custom/bin',
+      FOO: 'bar'
+    })
+    expect(merged.PATH).toBe('/custom/bin')
+    expect(merged.HOME).toBe('/home/u')
+    expect(merged.FOO).toBe('bar')
+    expect(merged).not.toHaveProperty('EMPTY')
   })
 })
 

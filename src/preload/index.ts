@@ -1,13 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels } from '../shared/ipc'
-import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
+import type {
+  AgentProfile,
+  AppSettings,
+  ChatMessage,
+  LayoutPreset,
+  Workspace
+} from '../shared/types'
 
 export interface PtySpawnOptions {
   paneId: string
-  shellId: string
+  shellId?: string
   cwd: string
   cols: number
   rows: number
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
 }
 
 export interface PtyDataEvent {
@@ -73,6 +82,15 @@ const archeonApi = {
     list: () => ipcRenderer.invoke(IpcChannels.presetsList),
     save: (presets: LayoutPreset[]) => ipcRenderer.invoke(IpcChannels.presetsSave, presets),
     upsert: (preset: LayoutPreset) => ipcRenderer.invoke(IpcChannels.presetsUpsert, preset)
+  },
+  profiles: {
+    list: (): Promise<AgentProfile[]> => ipcRenderer.invoke(IpcChannels.profilesList),
+    save: (profiles: AgentProfile[]): Promise<AgentProfile[]> =>
+      ipcRenderer.invoke(IpcChannels.profilesSave, profiles),
+    upsert: (profile: AgentProfile): Promise<AgentProfile[]> =>
+      ipcRenderer.invoke(IpcChannels.profilesUpsert, profile),
+    delete: (id: string): Promise<AgentProfile[]> =>
+      ipcRenderer.invoke(IpcChannels.profilesDelete, id)
   },
   pty: {
     spawn: (opts: PtySpawnOptions): Promise<{ sessionId: string }> =>

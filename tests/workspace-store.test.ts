@@ -114,6 +114,60 @@ describe('WorkspaceStore', () => {
     expect(store.loadPresets()).toEqual([])
   })
 
+  it('upserts, lists, and deletes user agent profiles', () => {
+    const profile = {
+      id: 'profile_test',
+      name: 'My Claude',
+      color: '#d4a27f',
+      kind: 'cli_agent' as const,
+      defaults: { command: 'claude', args: [], env: {}, cwd: '' }
+    }
+    const listed = store.upsertProfile(profile)
+    expect(listed).toHaveLength(1)
+    expect(listed[0].name).toBe('My Claude')
+    expect(store.loadProfiles()[0].defaults).toMatchObject({ command: 'claude' })
+
+    store.upsertProfile({ ...profile, name: 'Renamed' })
+    expect(store.loadProfiles()[0].name).toBe('Renamed')
+
+    const afterDelete = store.deleteProfile(profile.id)
+    expect(afterDelete).toEqual([])
+    expect(store.loadProfiles()).toEqual([])
+  })
+
+  it('refuses to overwrite built-in profile ids', () => {
+    expect(() =>
+      store.upsertProfile({
+        id: 'builtin_claude',
+        name: 'Hack',
+        color: '#000',
+        kind: 'cli_agent',
+        defaults: { command: 'x' }
+      })
+    ).toThrow(/built-in/i)
+  })
+
+  it('saveProfiles strips built-in ids from persistence', () => {
+    const saved = store.saveProfiles([
+      {
+        id: 'builtin_claude',
+        name: 'Claude',
+        color: '#d4a27f',
+        kind: 'cli_agent',
+        defaults: { command: 'claude' }
+      },
+      {
+        id: 'profile_user',
+        name: 'User',
+        color: '#fff',
+        kind: 'cli_agent',
+        defaults: { command: 'echo' }
+      }
+    ])
+    expect(saved).toHaveLength(1)
+    expect(saved[0].id).toBe('profile_user')
+  })
+
   it('exports workspace JSON without secret-like fields', () => {
     const ws = store.create('Export')
     const pane = Object.values(ws.panes)[0]

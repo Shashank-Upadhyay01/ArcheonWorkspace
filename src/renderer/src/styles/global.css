@@ -472,6 +472,11 @@ button {
   font-size: 0.9rem;
 }
 
+.btn--sm {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+}
+
 /* ── Empty workspace ──────────────────────────────────────── */
 
 .empty-workspace {
@@ -1386,4 +1391,165 @@ button {
 
 .statusbar-meta--accent {
   color: var(--accent-dim);
+}
+
+/* ── CLI agent pane ───────────────────────────────────────── */
+
+.cli-agent-pane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+.cli-agent-header {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.cli-agent-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cli-agent-header-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.cli-agent-status {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.cli-agent-status--running {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cli-agent-status--exited {
+  color: var(--text-muted);
+}
+
+.cli-agent-status--error {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.cli-agent-status--idle {
+  color: var(--text-muted);
+}
+
+.cli-agent-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+}
+
+.cli-agent-field {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.cli-agent-field--grow {
+  flex: 1 1 8rem;
+}
+
+.cli-agent-field span {
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cli-agent-input {
+  min-width: 5rem;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 0.2rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.cli-agent-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.cli-agent-input:disabled {
+  opacity: 0.65;
+}
+
+.cli-agent-relaunch-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+}
+
+.cli-agent-term {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Profile editor (sidebar) ─────────────────────────────── */
+
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.55rem;
+}
+
+.profile-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-editor-color {
+  width: 100%;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  cursor: pointer;
 }

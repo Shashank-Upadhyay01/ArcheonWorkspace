@@ -345,7 +345,7 @@ export class WorkspaceStore {
     return structuredClone(ws)
   }
 
-  /** Load agent profiles; empty array when file is missing or invalid. */
+  /** Load user agent profiles; empty array when file is missing or invalid. */
   loadProfiles(): AgentProfile[] {
     const raw = readJsonFile(this.paths.profilesPath)
     if (raw === null) return []
@@ -356,6 +356,38 @@ export class WorkspaceStore {
       if (r.success) out.push(r.data as AgentProfile)
     }
     return out
+  }
+
+  /** Persist user profiles (built-ins stay in code; only non-builtin ids). */
+  saveProfiles(profiles: AgentProfile[]): AgentProfile[] {
+    const validated: AgentProfile[] = []
+    for (const item of profiles) {
+      // Never write built-in template ids into profiles.json
+      if (item.id.startsWith('builtin_')) continue
+      const r = agentProfileSchema.safeParse(item)
+      if (r.success) validated.push(r.data as AgentProfile)
+    }
+    atomicWriteJson(this.paths.profilesPath, validated)
+    return validated
+  }
+
+  /** Append or replace a user profile by id. */
+  upsertProfile(profile: AgentProfile): AgentProfile[] {
+    if (profile.id.startsWith('builtin_')) {
+      throw new Error('Cannot overwrite built-in profile templates')
+    }
+    const all = this.loadProfiles().filter((p) => p.id !== profile.id)
+    const next = [...all, profile]
+    return this.saveProfiles(next)
+  }
+
+  /** Delete a user profile by id. Built-ins are ignored. */
+  deleteProfile(id: string): AgentProfile[] {
+    if (id.startsWith('builtin_')) {
+      return this.loadProfiles()
+    }
+    const next = this.loadProfiles().filter((p) => p.id !== id)
+    return this.saveProfiles(next)
   }
 
   /** Load user layout presets; empty array when file is missing or invalid. */

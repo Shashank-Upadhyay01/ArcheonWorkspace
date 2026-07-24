@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react'
 import EmptyWorkspace from './components/EmptyWorkspace'
 import DockLayout from './components/layout/DockLayout'
 import AiChatPane from './components/panes/AiChatPane'
+import CliAgentPane from './components/panes/CliAgentPane'
 import ShellPane from './components/panes/ShellPane'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
@@ -18,12 +19,8 @@ function PaneBody({ pane, workspaceId }: { pane: Pane; workspaceId: string }): J
     return <AiChatPane key={pane.id} pane={pane} workspaceId={workspaceId} />
   }
 
-  return (
-    <div key={pane.id} className="pane-body-placeholder">
-      <p className="pane-body-placeholder-meta">{pane.type.replace('_', ' ')}</p>
-      <p className="pane-body-placeholder-hint">CLI agent process will attach here later.</p>
-    </div>
-  )
+  // cli_agent (exhaustive for PaneType)
+  return <CliAgentPane key={pane.id} pane={pane} workspaceId={workspaceId} />
 }
 
 function WorkspaceDock(): JSX.Element {

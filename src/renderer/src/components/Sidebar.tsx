@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { builtinPresets } from '@shared/layout'
+import { builtinAgentProfiles, isBuiltinProfileId } from '@shared/profiles'
+import type { AgentProfile } from '@shared/types'
+import ProfileEditor from './ProfileEditor'
 import { useAppStore } from '../stores/app-store'
 
 export default function Sidebar(): JSX.Element {
@@ -7,12 +10,16 @@ export default function Sidebar(): JSX.Element {
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const userPresets = useAppStore((s) => s.userPresets)
+  const userProfiles = useAppStore((s) => s.userProfiles)
   const createWorkspace = useAppStore((s) => s.createWorkspace)
   const selectWorkspace = useAppStore((s) => s.selectWorkspace)
   const renameWorkspace = useAppStore((s) => s.renameWorkspace)
   const deleteWorkspace = useAppStore((s) => s.deleteWorkspace)
   const applyPreset = useAppStore((s) => s.applyPreset)
   const saveUserPreset = useAppStore((s) => s.saveUserPreset)
+  const upsertProfile = useAppStore((s) => s.upsertProfile)
+  const deleteProfile = useAppStore((s) => s.deleteProfile)
+  const applyProfile = useAppStore((s) => s.applyProfile)
   const focusPane = useAppStore((s) => s.focusPane)
 
   const [creating, setCreating] = useState(false)
@@ -21,6 +28,9 @@ export default function Sidebar(): JSX.Element {
   const [renameValue, setRenameValue] = useState('')
   const [savingPreset, setSavingPreset] = useState(false)
   const [presetName, setPresetName] = useState('')
+  /** null = closed; 'new' = blank create; profile = edit; seed via seedProfile */
+  const [editingProfile, setEditingProfile] = useState<AgentProfile | null | 'new'>(null)
+  const [seedProfile, setSeedProfile] = useState<AgentProfile | null>(null)
 
   if (sidebarCollapsed) {
     return <aside className="sidebar sidebar--collapsed" aria-hidden="true" />
@@ -28,7 +38,12 @@ export default function Sidebar(): JSX.Element {
 
   const agents = activeWorkspace ? Object.values(activeWorkspace.panes) : []
   const builtIns = builtinPresets()
+  const builtInProfiles = builtinAgentProfiles()
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
+  const usedColors = [
+    ...agents.map((p) => p.color),
+    ...userProfiles.map((p) => p.color)
+  ]
 
   async function handleCreate(): Promise<void> {
     const name = newName.trim() || `Workspace ${workspaces.length + 1}`
@@ -203,6 +218,125 @@ export default function Sidebar(): JSX.Element {
             ))
           )}
         </ul>
+      </section>
+
+      <section className="sidebar-section">
+        <div className="sidebar-section-header">
+          <h2 className="sidebar-heading">Profiles</h2>
+          <button
+            type="button"
+            className="sidebar-icon-btn"
+            aria-label="New agent profile"
+            title="New profile"
+            onClick={() => {
+              setSeedProfile(null)
+              setEditingProfile('new')
+            }}
+          >
+            +
+          </button>
+        </div>
+
+        {editingProfile !== null ? (
+          <ProfileEditor
+            profile={editingProfile === 'new' ? null : editingProfile}
+            seed={seedProfile}
+            usedColors={usedColors}
+            onCancel={() => {
+              setEditingProfile(null)
+              setSeedProfile(null)
+            }}
+            onSave={async (profile) => {
+              await upsertProfile(profile)
+              setEditingProfile(null)
+              setSeedProfile(null)
+            }}
+          />
+        ) : (
+          <ul className="sidebar-list">
+            {builtInProfiles.map((profile) => (
+              <li key={profile.id} className="sidebar-item">
+                <button
+                  type="button"
+                  className="sidebar-item-main"
+                  disabled={!activeWorkspace}
+                  title={`Apply ${profile.name}`}
+                  onClick={() => void applyProfile(profile)}
+                >
+                  <span
+                    className="sidebar-item-dot"
+                    style={{ background: profile.color }}
+                    aria-hidden="true"
+                  />
+                  <span className="sidebar-item-label">{profile.name}</span>
+                  <span className="sidebar-item-meta">template</span>
+                </button>
+                <div className="sidebar-item-actions">
+                  <button
+                    type="button"
+                    className="sidebar-icon-btn sidebar-icon-btn--quiet"
+                    aria-label={`Clone ${profile.name}`}
+                    title="Clone as user profile"
+                    onClick={() => {
+                      setSeedProfile(profile)
+                      setEditingProfile('new')
+                    }}
+                  >
+                    ⎘
+                  </button>
+                </div>
+              </li>
+            ))}
+            {userProfiles.map((profile) => (
+              <li key={profile.id} className="sidebar-item">
+                <button
+                  type="button"
+                  className="sidebar-item-main"
+                  disabled={!activeWorkspace}
+                  title={`Apply ${profile.name}`}
+                  onClick={() => void applyProfile(profile)}
+                >
+                  <span
+                    className="sidebar-item-dot"
+                    style={{ background: profile.color }}
+                    aria-hidden="true"
+                  />
+                  <span className="sidebar-item-label">{profile.name}</span>
+                  <span className="sidebar-item-meta">user</span>
+                </button>
+                <div className="sidebar-item-actions">
+                  <button
+                    type="button"
+                    className="sidebar-icon-btn sidebar-icon-btn--quiet"
+                    aria-label={`Edit ${profile.name}`}
+                    title="Edit"
+                    onClick={() => {
+                      setSeedProfile(null)
+                      setEditingProfile(profile)
+                    }}
+                  >
+                    ✎
+                  </button>
+                  {!isBuiltinProfileId(profile.id) ? (
+                    <button
+                      type="button"
+                      className="sidebar-icon-btn sidebar-icon-btn--quiet sidebar-icon-btn--danger"
+                      aria-label={`Delete ${profile.name}`}
+                      title="Delete"
+                      onClick={() => {
+                        if (window.confirm(`Delete profile “${profile.name}”?`)) {
+                          void deleteProfile(profile.id)
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="sidebar-section sidebar-section--grow">

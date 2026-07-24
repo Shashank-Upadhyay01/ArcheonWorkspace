@@ -1,4 +1,10 @@
-import type { AppSettings, ChatMessage, LayoutPreset, Workspace } from '../shared/types'
+import type {
+  AgentProfile,
+  AppSettings,
+  ChatMessage,
+  LayoutPreset,
+  Workspace
+} from '../shared/types'
 
 export interface WorkspaceSummary {
   id: string
@@ -8,10 +14,13 @@ export interface WorkspaceSummary {
 
 export interface PtySpawnOptions {
   paneId: string
-  shellId: string
+  shellId?: string
   cwd: string
   cols: number
   rows: number
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
 }
 
 export interface PtyDataEvent {
@@ -77,6 +86,12 @@ export interface ArcheonApi {
     list(): Promise<LayoutPreset[]>
     save(presets: LayoutPreset[]): Promise<LayoutPreset[]>
     upsert(preset: LayoutPreset): Promise<LayoutPreset[]>
+  }
+  profiles: {
+    list(): Promise<AgentProfile[]>
+    save(profiles: AgentProfile[]): Promise<AgentProfile[]>
+    upsert(profile: AgentProfile): Promise<AgentProfile[]>
+    delete(id: string): Promise<AgentProfile[]>
   }
   pty: {
     spawn(opts: PtySpawnOptions): Promise<{ sessionId: string }>

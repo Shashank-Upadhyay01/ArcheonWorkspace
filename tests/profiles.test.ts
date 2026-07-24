@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest'
+import {
+  builtinAgentProfiles,
+  emptyCliDefaults,
+  isBuiltinProfileId,
+  parseCliDefaults
+} from '../src/shared/profiles'
+
+describe('builtinAgentProfiles', () => {
+  it('includes Claude, Codex, Aider, and Custom templates', () => {
+    const names = builtinAgentProfiles().map((p) => p.name)
+    expect(names).toEqual(expect.arrayContaining(['Claude Code', 'Codex', 'Aider', 'Custom']))
+    for (const p of builtinAgentProfiles()) {
+      expect(p.kind).toBe('cli_agent')
+      expect(isBuiltinProfileId(p.id)).toBe(true)
+      expect(typeof parseCliDefaults(p.defaults).command).toBe('string')
+    }
+  })
+
+  it('does not auto-spawn — commands are editable strings', () => {
+    const claude = builtinAgentProfiles().find((p) => p.id === 'builtin_claude')!
+    expect(parseCliDefaults(claude.defaults).command).toBe('claude')
+    const custom = builtinAgentProfiles().find((p) => p.id === 'builtin_custom')!
+    expect(parseCliDefaults(custom.defaults).command).toBe('')
+  })
+})
+
+describe('parseCliDefaults', () => {
+  it('returns empty defaults for invalid input', () => {
+    expect(parseCliDefaults(null)).toEqual(emptyCliDefaults())
+    expect(parseCliDefaults(undefined)).toEqual(emptyCliDefaults())
+    expect(parseCliDefaults('x')).toEqual(emptyCliDefaults())
+  })
+
+  it('parses command, args, env, cwd', () => {
+    expect(
+      parseCliDefaults({
+        command: 'codex',
+        args: ['--full-auto', 1, 'ok'],
+        env: { FOO: 'bar', N: 1 },
+        cwd: '/proj'
+      })
+    ).toEqual({
+      command: 'codex',
+      args: ['--full-auto', 'ok'],
+      env: { FOO: 'bar' },
+      cwd: '/proj'
+    })
+  })
+})
