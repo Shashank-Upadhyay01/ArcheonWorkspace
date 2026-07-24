@@ -1,0 +1,42 @@
+import { useAppStore } from '../stores/app-store'
+
+export default function TitleBar(): JSX.Element {
+  const activeWorkspace = useAppStore((s) => s.activeWorkspace)
+  const dirty = useAppStore((s) => s.dirty)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed)
+
+  const title = activeWorkspace?.name ?? 'Archeon Workspace'
+
+  return (
+    <header className="titlebar" role="banner">
+      <div className="titlebar-left">
+        <button
+          type="button"
+          className="titlebar-toggle"
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          <span className="titlebar-toggle-icon" aria-hidden="true">
+            {sidebarCollapsed ? '›' : '‹'}
+          </span>
+        </button>
+        <div className="titlebar-brand">
+          <span className="titlebar-mark" aria-hidden="true" />
+          <span className="titlebar-product">Archeon</span>
+        </div>
+        <span className="titlebar-divider" aria-hidden="true" />
+        <h1 className="titlebar-workspace">
+          {title}
+          {dirty ? (
+            <span className="titlebar-dirty" title="Unsaved changes" aria-label="Unsaved changes" />
+          ) : null}
+        </h1>
+      </div>
+      <div className="titlebar-right">
+        <span className="titlebar-tag">Workspace</span>
+      </div>
+    </header>
+  )
+}
