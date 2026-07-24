@@ -26,6 +26,7 @@ function autosaveLabel(status: string, dirty: boolean): string {
 export default function StatusBar(): JSX.Element {
   const autosaveStatus = useAppStore((s) => s.autosaveStatus)
   const dirty = useAppStore((s) => s.dirty)
+  const error = useAppStore((s) => s.error)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
   const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
@@ -36,14 +37,19 @@ export default function StatusBar(): JSX.Element {
       <div className="statusbar-left">
         <span
           className={
-            autosaveStatus === 'error'
+            autosaveStatus === 'error' || error
               ? 'statusbar-pill statusbar-pill--error'
               : dirty || autosaveStatus === 'dirty' || autosaveStatus === 'saving'
                 ? 'statusbar-pill statusbar-pill--warn'
                 : 'statusbar-pill'
           }
+          title={error ?? undefined}
         >
-          {autosaveLabel(autosaveStatus, dirty)}
+          {error
+            ? error.length > 48
+              ? `${error.slice(0, 45)}…`
+              : error
+            : autosaveLabel(autosaveStatus, dirty)}
         </span>
         {activeWorkspace ? (
           <span className="statusbar-meta">

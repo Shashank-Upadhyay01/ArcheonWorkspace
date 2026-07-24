@@ -493,7 +493,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeWorkspace: fresh,
       dirty: false,
       autosaveStatus: 'saved',
-      sidebarCollapsed: fresh?.sidebarCollapsed ?? false
+      sidebarCollapsed: fresh?.sidebarCollapsed ?? false,
+      // New workspace has different panes — drop live runtime maps
+      broadcastPaneIds: [],
+      ptySessionByPane: {},
+      paneRuntimeStatus: {}
     })
   },
 
@@ -567,7 +571,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeWorkspace: nextActive,
         dirty: false,
         autosaveStatus: 'idle',
-        sidebarCollapsed: nextActive?.sidebarCollapsed ?? false
+        sidebarCollapsed: nextActive?.sidebarCollapsed ?? false,
+        // Active workspace changed — same cleanup as selectWorkspace
+        broadcastPaneIds: [],
+        ptySessionByPane: {},
+        paneRuntimeStatus: {}
       })
     } else {
       // Non-active delete: keep active dirty / autosave / workspace intact
@@ -653,30 +661,47 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!ws) return { canceled: true }
     await get().flushSave()
     const api = getArcheonApi()
-    return api.workspace.export(ws.id)
+    try {
+      const result = await api.workspace.export(ws.id)
+      if (!result.canceled) {
+        set({ error: null })
+      }
+      return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      set({ error: `Export failed: ${message}` })
+      return { canceled: true }
+    }
   },
 
   async importWorkspace() {
     const api = getArcheonApi()
     await get().flushSave()
-    const result = await api.workspace.import()
-    if (result.canceled || !result.workspace) {
+    try {
+      const result = await api.workspace.import()
+      if (result.canceled || !result.workspace) {
+        return { canceled: true }
+      }
+      await api.workspace.setActive(result.workspace.id)
+      const list = await api.workspace.list()
+      const fresh = await api.workspace.get(result.workspace.id)
+      set({
+        workspaces: list,
+        activeWorkspace: fresh,
+        dirty: false,
+        autosaveStatus: 'saved',
+        sidebarCollapsed: fresh?.sidebarCollapsed ?? false,
+        broadcastPaneIds: [],
+        ptySessionByPane: {},
+        paneRuntimeStatus: {},
+        error: null
+      })
+      return { canceled: false }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      set({ error: `Import failed: ${message}` })
       return { canceled: true }
     }
-    await api.workspace.setActive(result.workspace.id)
-    const list = await api.workspace.list()
-    const fresh = await api.workspace.get(result.workspace.id)
-    set({
-      workspaces: list,
-      activeWorkspace: fresh,
-      dirty: false,
-      autosaveStatus: 'saved',
-      sidebarCollapsed: fresh?.sidebarCollapsed ?? false,
-      broadcastPaneIds: [],
-      ptySessionByPane: {},
-      paneRuntimeStatus: {}
-    })
-    return { canceled: false }
   },
 
   markDirty() {
@@ -868,6 +893,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       activePaneId
     }
     dirtyWorkspace(set, next)
+    // Preset replaces all panes — drop stale broadcast/PTY/runtime maps
+    set({
+      broadcastPaneIds: [],
+      ptySessionByPane: {},
+      paneRuntimeStatus: {}
+    })
     await get().flushSave()
   },
 
