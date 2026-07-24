@@ -1553,3 +1553,11 @@ button {
   background: transparent;
   cursor: pointer;
 }
+
+.profile-editor-env {
+  resize: vertical;
+  min-height: 3.2rem;
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  text-transform: none;
+  letter-spacing: normal;
+}

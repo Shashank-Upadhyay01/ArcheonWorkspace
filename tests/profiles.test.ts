@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   builtinAgentProfiles,
   emptyCliDefaults,
+  envToText,
   isBuiltinProfileId,
-  parseCliDefaults
+  parseCliDefaults,
+  parseEnvText
 } from '../src/shared/profiles'
 
 describe('builtinAgentProfiles', () => {
@@ -46,5 +48,28 @@ describe('parseCliDefaults', () => {
       env: { FOO: 'bar' },
       cwd: '/proj'
     })
+  })
+})
+
+describe('envToText / parseEnvText', () => {
+  it('round-trips KEY=value lines', () => {
+    const env = { API_KEY: 'secret', PATH: '/usr/bin' }
+    expect(parseEnvText(envToText(env))).toEqual(env)
+  })
+
+  it('ignores blanks, comments, and invalid lines', () => {
+    expect(
+      parseEnvText(`
+# comment
+FOO=bar
+invalid
+=novalue
+BAZ=with=equals
+`)
+    ).toEqual({ FOO: 'bar', BAZ: 'with=equals' })
+  })
+
+  it('preserves empty values', () => {
+    expect(parseEnvText('EMPTY=')).toEqual({ EMPTY: '' })
   })
 })

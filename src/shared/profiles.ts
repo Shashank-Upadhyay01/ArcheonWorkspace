@@ -96,3 +96,28 @@ export function builtinAgentProfiles(): AgentProfile[] {
 export function isBuiltinProfileId(id: string): boolean {
   return id.startsWith('builtin_')
 }
+
+/** Serialize env map as KEY=value lines for a simple textarea editor. */
+export function envToText(env: Record<string, string>): string {
+  return Object.entries(env)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n')
+}
+
+/**
+ * Parse KEY=value lines into an env map.
+ * Blank lines and # comments are ignored. First `=` splits key/value.
+ */
+export function parseEnvText(text: string): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const eq = line.indexOf('=')
+    if (eq <= 0) continue
+    const key = line.slice(0, eq).trim()
+    if (!key) continue
+    env[key] = line.slice(eq + 1)
+  }
+  return env
+}

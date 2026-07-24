@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createId } from '@shared/ids'
-import { emptyCliDefaults, parseCliDefaults } from '@shared/profiles'
+import { emptyCliDefaults, envToText, parseCliDefaults, parseEnvText } from '@shared/profiles'
+import { joinArgs, parseArgs } from '@shared/shell-args'
 import type { AgentProfile } from '@shared/types'
 import { nextAgentColor } from '@shared/colors'
 
@@ -27,7 +28,8 @@ export default function ProfileEditor({
   const [name, setName] = useState(source?.name ?? 'Custom agent')
   const [color, setColor] = useState(source?.color ?? nextAgentColor(usedColors))
   const [command, setCommand] = useState(defaults.command)
-  const [argsText, setArgsText] = useState(defaults.args.join(' '))
+  const [argsText, setArgsText] = useState(joinArgs(defaults.args))
+  const [envText, setEnvText] = useState(envToText(defaults.env))
   const [cwd, setCwd] = useState(defaults.cwd)
   const [saving, setSaving] = useState(false)
 
@@ -37,7 +39,8 @@ export default function ProfileEditor({
     setName(src?.name ?? 'Custom agent')
     setColor(src?.color ?? nextAgentColor(usedColors))
     setCommand(d.command)
-    setArgsText(d.args.join(' '))
+    setArgsText(joinArgs(d.args))
+    setEnvText(envToText(d.env))
     setCwd(d.cwd)
   }, [profile, seed, usedColors])
 
@@ -46,12 +49,8 @@ export default function ProfileEditor({
     if (!trimmed) return
     setSaving(true)
     try {
-      const args = argsText.trim()
-        ? argsText
-            .trim()
-            .match(/"([^"]*)"|'([^']*)'|(\S+)/g)
-            ?.map((t) => t.replace(/^["']|["']$/g, '')) ?? []
-        : []
+      const args = parseArgs(argsText)
+      const env = parseEnvText(envText)
       const next: AgentProfile = {
         id: profile?.id && !profile.id.startsWith('builtin_') ? profile.id : createId('profile'),
         name: trimmed,
@@ -61,6 +60,7 @@ export default function ProfileEditor({
           ...emptyCliDefaults(),
           command: command.trim(),
           args,
+          env,
           cwd: cwd.trim()
         }
       }
@@ -108,8 +108,19 @@ export default function ProfileEditor({
         <input
           className="sidebar-input"
           value={argsText}
-          placeholder="optional"
+          placeholder='e.g. --model "gpt-4" path'
           onChange={(e) => setArgsText(e.target.value)}
+        />
+      </label>
+      <label className="profile-editor-field">
+        <span>Env (KEY=value)</span>
+        <textarea
+          className="sidebar-input profile-editor-env"
+          value={envText}
+          placeholder={'API_KEY=...\nFOO=bar'}
+          rows={3}
+          onChange={(e) => setEnvText(e.target.value)}
+          spellCheck={false}
         />
       </label>
       <label className="profile-editor-field">

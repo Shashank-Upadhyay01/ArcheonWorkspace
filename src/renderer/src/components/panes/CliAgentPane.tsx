@@ -1,6 +1,7 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from 'xterm'
+import { joinArgs, parseArgs } from '@shared/shell-args'
 import type { Pane } from '@shared/types'
 import { getArcheonApi } from '../../lib/ipc'
 import { useAppStore } from '../../stores/app-store'
@@ -33,23 +34,6 @@ function serializeScrollback(term: Terminal): string {
   return lines.join('\n')
 }
 
-function argsToString(args: string[]): string {
-  return args.join(' ')
-}
-
-function stringToArgs(s: string): string[] {
-  const trimmed = s.trim()
-  if (!trimmed) return []
-  // Simple whitespace split; quoted tokens kept as-is for common cases
-  const tokens: string[] = []
-  const re = /"([^"]*)"|'([^']*)'|(\S+)/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(trimmed)) !== null) {
-    tokens.push(m[1] ?? m[2] ?? m[3] ?? '')
-  }
-  return tokens
-}
-
 export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): JSX.Element {
   const updatePaneCli = useAppStore((s) => s.updatePaneCli)
 
@@ -68,7 +52,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
   const [exitCode, setExitCode] = useState<number | null>(pane.cli?.lastExitCode ?? null)
   const [error, setError] = useState<string | null>(null)
   const [command, setCommand] = useState(pane.cli?.command ?? '')
-  const [argsText, setArgsText] = useState(argsToString(pane.cli?.args ?? []))
+  const [argsText, setArgsText] = useState(joinArgs(pane.cli?.args ?? []))
   const [cwd, setCwd] = useState(pane.cli?.cwd ?? '')
   /** After mount we never auto-start; user must confirm relaunch/start. */
   const [awaitingConfirm, setAwaitingConfirm] = useState(true)
@@ -77,7 +61,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
   useEffect(() => {
     if (status === 'running') return
     setCommand(pane.cli?.command ?? '')
-    setArgsText(argsToString(pane.cli?.args ?? []))
+    setArgsText(joinArgs(pane.cli?.args ?? []))
     setCwd(pane.cli?.cwd ?? '')
     if (pane.cli?.lastExitCode !== undefined && pane.cli?.lastExitCode !== null) {
       setExitCode(pane.cli.lastExitCode)
@@ -266,7 +250,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       return
     }
 
-    const args = stringToArgs(argsText)
+    const args = parseArgs(argsText)
     // Persist config before spawn
     updatePaneCli(pane.id, {
       command: cmd,
@@ -303,7 +287,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
 
     term.writeln('')
     term.writeln(
-      `\x1b[90m$ ${cmd}${args.length ? ' ' + args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ') : ''}\x1b[0m`
+      `\x1b[90m$ ${cmd}${args.length ? ' ' + joinArgs(args) : ''}\x1b[0m`
     )
 
     let sessionId = ''
@@ -397,7 +381,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
     if (status === 'running') return
     updatePaneCli(pane.id, {
       command: command.trim(),
-      args: stringToArgs(argsText),
+      args: parseArgs(argsText),
       cwd: cwd.trim()
     })
   }, [status, pane.id, command, argsText, cwd, updatePaneCli])
