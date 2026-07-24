@@ -229,6 +229,30 @@ button {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
+.titlebar-action {
+  -webkit-app-region: no-drag;
+  height: 28px;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.titlebar-action:hover:not(:disabled) {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.titlebar-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .titlebar-tag {
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -286,6 +310,61 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.sidebar-heading-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.roster-broadcast {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.roster-broadcast input {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.roster-broadcast--spacer {
+  width: 18px;
+}
+
+.roster-status {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-status--live {
+  color: var(--accent);
+}
+
+.roster-status--exited {
+  color: var(--warning);
+}
+
+.roster-status--error {
+  color: var(--danger);
 }
 
 .sidebar-list {
@@ -1391,6 +1470,144 @@ button {
 
 .statusbar-meta--accent {
   color: var(--accent-dim);
+}
+
+.statusbar-pill--broadcast {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* ── Command palette ──────────────────────────────────────── */
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: min(18vh, 8rem);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.command-palette {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: min(70vh, 28rem);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--bg-panel);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.command-palette-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.command-palette-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: var(--font-ui);
+}
+
+.command-palette-input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-palette-kbd {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  background: var(--bg-elevated);
+}
+
+.command-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.command-palette-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.command-palette-item:hover,
+.command-palette-item--active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated));
+}
+
+.command-palette-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-palette-item-group {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.command-palette-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding: 0.45rem 0.85rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.command-palette-footer kbd {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.05rem 0.28rem;
+  margin-right: 0.15rem;
+  background: var(--bg-panel);
 }
 
 /* ── CLI agent pane ───────────────────────────────────────── */

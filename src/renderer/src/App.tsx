@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import CommandPalette from './components/CommandPalette'
 import EmptyWorkspace from './components/EmptyWorkspace'
 import DockLayout from './components/layout/DockLayout'
 import AiChatPane from './components/panes/AiChatPane'
@@ -90,6 +91,7 @@ export default function App(): JSX.Element {
   const ready = useAppStore((s) => s.ready)
   const error = useAppStore((s) => s.error)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     void bootstrap()
@@ -112,6 +114,18 @@ export default function App(): JSX.Element {
 
     return unsubscribe
   }, [flushSave])
+
+  // Ctrl+K / Cmd+K toggles command palette
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setPaletteOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
   const showEmpty = !activeWorkspace || paneCount === 0
@@ -140,6 +154,7 @@ export default function App(): JSX.Element {
         </main>
       </div>
       <StatusBar />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

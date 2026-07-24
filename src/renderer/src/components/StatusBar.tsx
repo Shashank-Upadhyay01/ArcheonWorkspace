@@ -27,7 +27,9 @@ export default function StatusBar(): JSX.Element {
   const autosaveStatus = useAppStore((s) => s.autosaveStatus)
   const dirty = useAppStore((s) => s.dirty)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
+  const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
+  const broadcastCount = broadcastPaneIds.length
 
   return (
     <footer className="statusbar" role="contentinfo">
@@ -48,8 +50,19 @@ export default function StatusBar(): JSX.Element {
             {paneCount} pane{paneCount === 1 ? '' : 's'}
           </span>
         ) : null}
+        {broadcastCount > 0 ? (
+          <span
+            className="statusbar-pill statusbar-pill--broadcast"
+            title="Input in a selected shell is sent to all selected shells"
+          >
+            Broadcast: {broadcastCount} shell{broadcastCount === 1 ? '' : 's'}
+          </span>
+        ) : null}
       </div>
       <div className="statusbar-right">
+        <span className="statusbar-meta" title="Command palette">
+          Ctrl+K
+        </span>
         <span className="statusbar-meta">{platformLabel()}</span>
         <span className="statusbar-meta statusbar-meta--accent">Archeon Workspace</span>
       </div>

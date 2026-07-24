@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Terminal } from 'xterm'
 import type { Pane } from '@shared/types'
 import { getArcheonApi } from '../../lib/ipc'
+import { writePtyInput } from '../../lib/pty-input'
+import { useAppStore } from '../../stores/app-store'
 import 'xterm/css/xterm.css'
 
 const SCROLLBACK_CAP = 5000
@@ -32,6 +34,8 @@ function serializeScrollback(term: Terminal): string {
 }
 
 export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.Element {
+  const registerPtySession = useAppStore((s) => s.registerPtySession)
+  const setPaneRuntimeStatus = useAppStore((s) => s.setPaneRuntimeStatus)
   const hostRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -42,6 +46,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
 
   useEffect(() => {
     disposedRef.current = false
+    setPaneRuntimeStatus(pane.id, 'idle')
     const host = hostRef.current
     if (!host) return
 
@@ -50,6 +55,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
       api = getArcheonApi()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      setPaneRuntimeStatus(pane.id, 'error')
       return
     }
 
@@ -158,6 +164,8 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
         unsubExit = api.pty.onExit((ev) => {
           if (!sessionId || ev.sessionId !== sessionId) return
           sessionIdRef.current = null
+          registerPtySession(pane.id, null)
+          setPaneRuntimeStatus(pane.id, 'exited')
           setExited(ev.exitCode)
           term.writeln('')
           term.writeln(`\x1b[90m[process exited with code ${ev.exitCode}]\x1b[0m`)
@@ -173,14 +181,17 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
         })
         sessionId = result.sessionId
         sessionIdRef.current = sessionId
+        registerPtySession(pane.id, sessionId)
+        setPaneRuntimeStatus(pane.id, 'running')
         if (disposedRef.current) {
           void api.pty.kill(sessionId)
+          registerPtySession(pane.id, null)
           return
         }
 
         dataDisposable = term.onData((data) => {
           const sid = sessionIdRef.current
-          if (sid) api.pty.write(sid, data)
+          if (sid) writePtyInput(pane.id, sid, data)
         })
 
         resizeObserver = new ResizeObserver(() => {
@@ -196,6 +207,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
         if (disposedRef.current) return
         const message = err instanceof Error ? err.message : String(err)
         setError(message)
+        setPaneRuntimeStatus(pane.id, 'error')
         term.writeln(`\x1b[31mFailed to start shell: ${message}\x1b[0m`)
       }
     }
@@ -213,6 +225,8 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
       unsubExit?.()
       const sid = sessionIdRef.current
       sessionIdRef.current = null
+      registerPtySession(pane.id, null)
+      setPaneRuntimeStatus(pane.id, null)
       if (sid) {
         void api.pty.kill(sid)
       }

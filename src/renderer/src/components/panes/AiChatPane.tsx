@@ -15,6 +15,7 @@ function apiKeySecretName(providerId: string): string {
 
 export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.Element {
   const settings = useAppStore((s) => s.settings)
+  const setPaneRuntimeStatus = useAppStore((s) => s.setPaneRuntimeStatus)
   const providerId = pane.aiChat?.providerId || settings?.defaultProviderId || 'xai'
   const model = pane.aiChat?.model || settings?.defaultModel || 'grok-2-latest'
   const systemPrompt = pane.aiChat?.systemPrompt ?? ''
@@ -45,6 +46,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     setHasKey(null)
     streamAccRef.current = ''
     requestIdRef.current = null
+    setPaneRuntimeStatus(pane.id, 'idle')
 
     let api: ReturnType<typeof getArcheonApi>
     try {
@@ -52,6 +54,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setLoaded(true)
+      setPaneRuntimeStatus(pane.id, 'error')
       return
     }
 
@@ -82,8 +85,9 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
 
     return () => {
       disposedRef.current = true
+      setPaneRuntimeStatus(pane.id, null)
     }
-  }, [workspaceId, pane.id, providerId])
+  }, [workspaceId, pane.id, providerId, setPaneRuntimeStatus])
 
   // Auto-scroll on new content
   useEffect(() => {
@@ -136,6 +140,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     setDraft('')
     setError(null)
     setStreaming(true)
+    setPaneRuntimeStatus(pane.id, 'streaming')
     setStreamText('')
     streamAccRef.current = ''
 
@@ -163,6 +168,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
       setStreamText('')
       streamAccRef.current = ''
       setStreaming(false)
+      setPaneRuntimeStatus(pane.id, errorMessage ? 'error' : 'idle')
       requestIdRef.current = null
     }
 
@@ -193,7 +199,7 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
     } finally {
       unsub()
     }
-  }, [draft, streaming, messages, providerId, model, systemPrompt, persist])
+  }, [draft, streaming, messages, providerId, model, systemPrompt, persist, pane.id, setPaneRuntimeStatus])
 
   const providerLabel =
     settings?.providers.find((p) => p.id === providerId)?.label ?? providerId

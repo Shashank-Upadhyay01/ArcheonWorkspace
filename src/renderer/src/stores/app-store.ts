@@ -29,6 +29,14 @@ import { getArcheonApi } from '../lib/ipc'
 
 export type AutosaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
+/** Live roster status for a pane (not persisted). */
+export type PaneRuntimeStatus =
+  | 'idle'
+  | 'running'
+  | 'exited'
+  | 'streaming'
+  | 'error'
+
 interface AppState {
   workspaces: WorkspaceSummary[]
   activeWorkspace: Workspace | null
@@ -41,6 +49,14 @@ interface AppState {
   autosaveStatus: AutosaveStatus
   ready: boolean
   error: string | null
+  /** Settings modal open (command palette / title bar). */
+  settingsOpen: boolean
+  /** Shell pane ids selected for broadcast input. */
+  broadcastPaneIds: string[]
+  /** Live paneId → PTY sessionId for active shells/CLI agents. */
+  ptySessionByPane: Record<string, string>
+  /** Live roster status by pane id. */
+  paneRuntimeStatus: Record<string, PaneRuntimeStatus>
 
   bootstrap: () => Promise<void>
   refreshList: () => Promise<void>
@@ -49,6 +65,7 @@ interface AppState {
   renameWorkspace: (id: string, name: string) => Promise<void>
   deleteWorkspace: (id: string) => Promise<void>
   setSidebarCollapsed: (collapsed: boolean) => void
+  setSettingsOpen: (open: boolean) => void
   markDirty: () => void
   flushSave: () => Promise<void>
   addPane: (type: PaneType, direction?: 'h' | 'v', anchorPaneId?: string) => Promise<void>
@@ -70,6 +87,15 @@ interface AppState {
     partial: Partial<NonNullable<Pane['cli']>> & { profileId?: string; name?: string; color?: string }
   ) => void
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>
+  toggleBroadcastPane: (paneId: string) => void
+  setBroadcastPaneIds: (ids: string[]) => void
+  clearBroadcast: () => void
+  /** Toggle: clear selection, or select all shell panes when empty. */
+  toggleBroadcastMode: () => void
+  registerPtySession: (paneId: string, sessionId: string | null) => void
+  setPaneRuntimeStatus: (paneId: string, status: PaneRuntimeStatus | null) => void
+  exportWorkspace: () => Promise<{ canceled: boolean; path?: string }>
+  importWorkspace: () => Promise<{ canceled: boolean }>
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -271,6 +297,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   autosaveStatus: 'idle',
   ready: false,
   error: null,
+  settingsOpen: false,
+  broadcastPaneIds: [],
+  ptySessionByPane: {},
+  paneRuntimeStatus: {},
 
   async bootstrap() {
     try {
@@ -477,7 +507,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeWorkspace: ws,
       dirty: false,
       autosaveStatus: 'idle',
-      sidebarCollapsed: ws?.sidebarCollapsed ?? get().sidebarCollapsed
+      sidebarCollapsed: ws?.sidebarCollapsed ?? get().sidebarCollapsed,
+      broadcastPaneIds: [],
+      ptySessionByPane: {},
+      paneRuntimeStatus: {}
     })
   },
 
@@ -549,6 +582,101 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = { ...ws, sidebarCollapsed: collapsed }
     set({ activeWorkspace: next })
     get().markDirty()
+  },
+
+  setSettingsOpen(open: boolean) {
+    set({ settingsOpen: open })
+  },
+
+  toggleBroadcastPane(paneId: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[paneId] || ws.panes[paneId].type !== 'shell') return
+    const current = get().broadcastPaneIds
+    const next = current.includes(paneId)
+      ? current.filter((id) => id !== paneId)
+      : [...current, paneId]
+    set({ broadcastPaneIds: next })
+  },
+
+  setBroadcastPaneIds(ids: string[]) {
+    const ws = get().activeWorkspace
+    if (!ws) {
+      set({ broadcastPaneIds: [] })
+      return
+    }
+    const valid = ids.filter((id) => ws.panes[id]?.type === 'shell')
+    set({ broadcastPaneIds: valid })
+  },
+
+  clearBroadcast() {
+    set({ broadcastPaneIds: [] })
+  },
+
+  toggleBroadcastMode() {
+    const ws = get().activeWorkspace
+    if (!ws) {
+      set({ broadcastPaneIds: [] })
+      return
+    }
+    if (get().broadcastPaneIds.length > 0) {
+      set({ broadcastPaneIds: [] })
+      return
+    }
+    const shellIds = Object.values(ws.panes)
+      .filter((p) => p.type === 'shell')
+      .map((p) => p.id)
+    set({ broadcastPaneIds: shellIds })
+  },
+
+  registerPtySession(paneId: string, sessionId: string | null) {
+    const map = { ...get().ptySessionByPane }
+    if (sessionId) {
+      map[paneId] = sessionId
+    } else {
+      delete map[paneId]
+    }
+    set({ ptySessionByPane: map })
+  },
+
+  setPaneRuntimeStatus(paneId: string, status: PaneRuntimeStatus | null) {
+    const map = { ...get().paneRuntimeStatus }
+    if (status) {
+      map[paneId] = status
+    } else {
+      delete map[paneId]
+    }
+    set({ paneRuntimeStatus: map })
+  },
+
+  async exportWorkspace() {
+    const ws = get().activeWorkspace
+    if (!ws) return { canceled: true }
+    await get().flushSave()
+    const api = getArcheonApi()
+    return api.workspace.export(ws.id)
+  },
+
+  async importWorkspace() {
+    const api = getArcheonApi()
+    await get().flushSave()
+    const result = await api.workspace.import()
+    if (result.canceled || !result.workspace) {
+      return { canceled: true }
+    }
+    await api.workspace.setActive(result.workspace.id)
+    const list = await api.workspace.list()
+    const fresh = await api.workspace.get(result.workspace.id)
+    set({
+      workspaces: list,
+      activeWorkspace: fresh,
+      dirty: false,
+      autosaveStatus: 'saved',
+      sidebarCollapsed: fresh?.sidebarCollapsed ?? false,
+      broadcastPaneIds: [],
+      ptySessionByPane: {},
+      paneRuntimeStatus: {}
+    })
+    return { canceled: false }
   },
 
   markDirty() {
@@ -660,6 +788,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         activePaneId
       }
     }
+
+    const { [id]: _sess, ...restSessions } = get().ptySessionByPane
+    const { [id]: _st, ...restStatus } = get().paneRuntimeStatus
+    set({
+      broadcastPaneIds: get().broadcastPaneIds.filter((pid) => pid !== id),
+      ptySessionByPane: restSessions,
+      paneRuntimeStatus: restStatus
+    })
 
     dirtyWorkspace(set, next)
     await get().flushSave()

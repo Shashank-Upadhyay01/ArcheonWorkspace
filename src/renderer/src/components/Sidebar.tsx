@@ -1,9 +1,31 @@
 import { useState } from 'react'
 import { builtinPresets } from '@shared/layout'
 import { builtinAgentProfiles, isBuiltinProfileId } from '@shared/profiles'
-import type { AgentProfile } from '@shared/types'
+import type { AgentProfile, Pane } from '@shared/types'
 import ProfileEditor from './ProfileEditor'
-import { useAppStore } from '../stores/app-store'
+import { useAppStore, type PaneRuntimeStatus } from '../stores/app-store'
+
+function statusLabel(status: PaneRuntimeStatus | undefined, pane: Pane): string {
+  if (status === 'streaming') return 'streaming'
+  if (status === 'running') return 'running'
+  if (status === 'exited') return 'exited'
+  if (status === 'error') return 'error'
+  if (pane.type === 'ai_chat') return 'idle'
+  if (pane.type === 'cli_agent') {
+    if (pane.cli?.lastExitCode !== undefined && pane.cli?.lastExitCode !== null) {
+      return `exit ${pane.cli.lastExitCode}`
+    }
+    return 'idle'
+  }
+  return status ?? '…'
+}
+
+function statusClass(status: PaneRuntimeStatus | undefined): string {
+  if (status === 'running' || status === 'streaming') return 'roster-status roster-status--live'
+  if (status === 'exited') return 'roster-status roster-status--exited'
+  if (status === 'error') return 'roster-status roster-status--error'
+  return 'roster-status'
+}
 
 export default function Sidebar(): JSX.Element {
   const workspaces = useAppStore((s) => s.workspaces)
@@ -11,6 +33,8 @@ export default function Sidebar(): JSX.Element {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const userPresets = useAppStore((s) => s.userPresets)
   const userProfiles = useAppStore((s) => s.userProfiles)
+  const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
+  const paneRuntimeStatus = useAppStore((s) => s.paneRuntimeStatus)
   const createWorkspace = useAppStore((s) => s.createWorkspace)
   const selectWorkspace = useAppStore((s) => s.selectWorkspace)
   const renameWorkspace = useAppStore((s) => s.renameWorkspace)
@@ -21,6 +45,7 @@ export default function Sidebar(): JSX.Element {
   const deleteProfile = useAppStore((s) => s.deleteProfile)
   const applyProfile = useAppStore((s) => s.applyProfile)
   const focusPane = useAppStore((s) => s.focusPane)
+  const toggleBroadcastPane = useAppStore((s) => s.toggleBroadcastPane)
 
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -187,35 +212,66 @@ export default function Sidebar(): JSX.Element {
       <section className="sidebar-section">
         <div className="sidebar-section-header">
           <h2 className="sidebar-heading">Agents</h2>
+          {broadcastPaneIds.length > 0 ? (
+            <span className="sidebar-heading-badge" title="Broadcast selection">
+              BC {broadcastPaneIds.length}
+            </span>
+          ) : null}
         </div>
         <ul className="sidebar-list">
           {agents.length === 0 ? (
             <li className="sidebar-empty">No panes yet</li>
           ) : (
-            agents.map((pane) => (
-              <li
-                key={pane.id}
-                className={
-                  activeWorkspace?.activePaneId === pane.id
-                    ? 'sidebar-item sidebar-item--active'
-                    : 'sidebar-item'
-                }
-              >
-                <button
-                  type="button"
-                  className="sidebar-item-main"
-                  onClick={() => focusPane(pane.id)}
+            agents.map((pane) => {
+              const status = paneRuntimeStatus[pane.id]
+              const isBroadcast = broadcastPaneIds.includes(pane.id)
+              const isShell = pane.type === 'shell'
+              return (
+                <li
+                  key={pane.id}
+                  className={
+                    activeWorkspace?.activePaneId === pane.id
+                      ? 'sidebar-item sidebar-item--active'
+                      : 'sidebar-item'
+                  }
                 >
-                  <span
-                    className="sidebar-item-dot"
-                    style={{ background: pane.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="sidebar-item-label">{pane.name}</span>
-                  <span className="sidebar-item-meta">{pane.type.replace('_', ' ')}</span>
-                </button>
-              </li>
-            ))
+                  {isShell ? (
+                    <label
+                      className="roster-broadcast"
+                      title={
+                        isBroadcast
+                          ? 'Remove from broadcast'
+                          : 'Include in broadcast input'
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isBroadcast}
+                        onChange={() => toggleBroadcastPane(pane.id)}
+                        aria-label={`Broadcast to ${pane.name}`}
+                      />
+                    </label>
+                  ) : (
+                    <span className="roster-broadcast roster-broadcast--spacer" aria-hidden="true" />
+                  )}
+                  <button
+                    type="button"
+                    className="sidebar-item-main"
+                    onClick={() => focusPane(pane.id)}
+                  >
+                    <span
+                      className="sidebar-item-dot"
+                      style={{ background: pane.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="sidebar-item-label">{pane.name}</span>
+                    <span className={statusClass(status)} title={pane.type.replace('_', ' ')}>
+                      {statusLabel(status, pane)}
+                    </span>
+                  </button>
+                </li>
+              )
+            })
           )}
         </ul>
       </section>

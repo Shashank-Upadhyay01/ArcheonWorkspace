@@ -1,4 +1,5 @@
-import { ipcMain, type WebContents } from 'electron'
+import { dialog, ipcMain, type WebContents } from 'electron'
+import fs from 'fs'
 import { IpcChannels } from '../shared/ipc'
 import type {
   AgentProfile,
@@ -76,17 +77,46 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     store.setActive(id)
   })
 
-  ipcMain.handle(IpcChannels.exportWorkspace, (_event, id: string) => {
+  /** Export workspace JSON via save dialog (strips secrets in store). */
+  ipcMain.handle(IpcChannels.exportWorkspace, async (_event, id: string) => {
     const json = store.exportWorkspace(id)
     if (json === null) {
       throw new Error(`Unknown workspace: ${id}`)
     }
-    return json
+    const ws = store.get(id)
+    const defaultName = `${(ws?.name || 'workspace').replace(/[<>:"/\\|?*]+/g, '_')}.json`
+    const result = await dialog.showSaveDialog({
+      title: 'Export workspace',
+      defaultPath: defaultName,
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    })
+    if (result.canceled || !result.filePath) {
+      return { canceled: true as const }
+    }
+    fs.writeFileSync(result.filePath, json, 'utf8')
+    return { canceled: false as const, path: result.filePath }
   })
 
-  ipcMain.handle(IpcChannels.importWorkspace, (_event, json: string) =>
-    store.importWorkspace(json)
-  )
+  /** Import workspace JSON via open dialog; validates in store.importWorkspace. */
+  ipcMain.handle(IpcChannels.importWorkspace, async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Import workspace',
+      properties: ['openFile'],
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    })
+    if (result.canceled || !result.filePaths[0]) {
+      return { canceled: true as const }
+    }
+    const json = fs.readFileSync(result.filePaths[0], 'utf8')
+    const workspace = store.importWorkspace(json)
+    return { canceled: false as const, workspace }
+  })
 
   ipcMain.handle(IpcChannels.settingsGet, () => store.getSettings())
 

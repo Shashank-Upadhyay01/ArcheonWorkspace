@@ -71,8 +71,13 @@ const archeonApi = {
     save: (ws: Workspace) => ipcRenderer.invoke(IpcChannels.workspaceSave, ws),
     delete: (id: string) => ipcRenderer.invoke(IpcChannels.workspaceDelete, id),
     setActive: (id: string) => ipcRenderer.invoke(IpcChannels.workspaceSetActive, id),
-    export: (id: string) => ipcRenderer.invoke(IpcChannels.exportWorkspace, id),
-    import: (json: string) => ipcRenderer.invoke(IpcChannels.importWorkspace, json)
+    export: (
+      id: string
+    ): Promise<{ canceled: true } | { canceled: false; path: string }> =>
+      ipcRenderer.invoke(IpcChannels.exportWorkspace, id),
+    import: (): Promise<
+      { canceled: true } | { canceled: false; workspace: Workspace }
+    > => ipcRenderer.invoke(IpcChannels.importWorkspace)
   },
   settings: {
     get: () => ipcRenderer.invoke(IpcChannels.settingsGet),

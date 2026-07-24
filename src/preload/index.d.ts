@@ -75,8 +75,8 @@ export interface ArcheonApi {
     save(ws: Workspace): Promise<void>
     delete(id: string): Promise<void>
     setActive(id: string): Promise<void>
-    export(id: string): Promise<string>
-    import(json: string): Promise<Workspace>
+    export(id: string): Promise<{ canceled: true } | { canceled: false; path: string }>
+    import(): Promise<{ canceled: true } | { canceled: false; workspace: Workspace }>
   }
   settings: {
     get(): Promise<AppSettings>

@@ -4,6 +4,7 @@ import { Terminal } from 'xterm'
 import { joinArgs, parseArgs } from '@shared/shell-args'
 import type { Pane } from '@shared/types'
 import { getArcheonApi } from '../../lib/ipc'
+import { writePtyInput } from '../../lib/pty-input'
 import { useAppStore } from '../../stores/app-store'
 import 'xterm/css/xterm.css'
 
@@ -36,6 +37,8 @@ function serializeScrollback(term: Terminal): string {
 
 export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): JSX.Element {
   const updatePaneCli = useAppStore((s) => s.updatePaneCli)
+  const registerPtySession = useAppStore((s) => s.registerPtySession)
+  const setPaneRuntimeStatus = useAppStore((s) => s.setPaneRuntimeStatus)
 
   const hostRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -67,6 +70,11 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       setExitCode(pane.cli.lastExitCode)
     }
   }, [pane.cli?.command, pane.cli?.args, pane.cli?.cwd, pane.cli?.lastExitCode, status])
+
+  // Mirror local agent status into the roster map
+  useEffect(() => {
+    setPaneRuntimeStatus(pane.id, status)
+  }, [status, pane.id, setPaneRuntimeStatus])
 
   const persistScrollback = useCallback((): void => {
     if (!termRef.current || disposedRef.current) return
@@ -114,6 +122,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
     unsubExitRef.current = undefined
     const sid = sessionIdRef.current
     sessionIdRef.current = null
+    registerPtySession(pane.id, null)
     if (sid) {
       try {
         const api = getArcheonApi()
@@ -122,7 +131,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
         /* ignore */
       }
     }
-  }, [])
+  }, [pane.id, registerPtySession])
 
   // Terminal host: create xterm once per pane/workspace; do NOT auto-spawn
   useEffect(() => {
@@ -216,6 +225,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
     // Always prompt on mount (resume + first open) — do not auto-start
     setAwaitingConfirm(true)
     setStatus('idle')
+    setPaneRuntimeStatus(pane.id, 'idle')
 
     return () => {
       disposedRef.current = true
@@ -227,6 +237,7 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       }
       persistScrollback()
       void teardownSession()
+      setPaneRuntimeStatus(pane.id, null)
       try {
         term.dispose()
       } catch {
@@ -299,7 +310,9 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
     unsubExitRef.current = api.pty.onExit((ev) => {
       if (!sessionId || ev.sessionId !== sessionId) return
       sessionIdRef.current = null
+      registerPtySession(pane.id, null)
       setStatus('exited')
+      setPaneRuntimeStatus(pane.id, 'exited')
       setExitCode(ev.exitCode)
       setAwaitingConfirm(true)
       term.writeln('')
@@ -324,17 +337,20 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       })
       sessionId = result.sessionId
       sessionIdRef.current = sessionId
+      registerPtySession(pane.id, sessionId)
       if (disposedRef.current) {
         void api.pty.kill(sessionId)
+        registerPtySession(pane.id, null)
         return
       }
       setStatus('running')
+      setPaneRuntimeStatus(pane.id, 'running')
       setExitCode(null)
       updatePaneCli(pane.id, { lastExitCode: null })
 
       dataDisposableRef.current = term.onData((data) => {
         const sid = sessionIdRef.current
-        if (sid) api.pty.write(sid, data)
+        if (sid) writePtyInput(pane.id, sid, data)
       })
 
       saveTimerRef.current = setInterval(persistScrollback, SCROLLBACK_SAVE_MS)
