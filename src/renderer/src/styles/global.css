@@ -1545,6 +1545,328 @@ button {
   flex-wrap: wrap;
 }
 
+/* ── Token usage bar ─────────────────────────────────────── */
+
+.token-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.token-bar-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  overflow: hidden;
+}
+
+.token-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 70%, #6cb6ff),
+    var(--accent)
+  );
+  transition: width 0.35s ease;
+}
+
+.token-bar--warn .token-bar-fill {
+  background: linear-gradient(90deg, var(--warning), #f0a020);
+}
+
+.token-bar--critical .token-bar-fill {
+  background: linear-gradient(90deg, var(--danger), #ff6b6b);
+}
+
+.token-bar-glow {
+  position: absolute;
+  top: -2px;
+  width: 12px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  filter: blur(4px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.token-bar-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.token-bar-used {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.token-bar-remain {
+  margin-left: 0.35rem;
+  opacity: 0.85;
+}
+
+.token-bar--compact {
+  gap: 0.35rem;
+  max-width: 120px;
+}
+
+.token-bar-mini {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* ── Agent task strip ────────────────────────────────────── */
+
+.agent-task-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 55%;
+}
+
+.agent-task-strip-summary {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.agent-task-strip-list {
+  display: flex;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.agent-task-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 88px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+
+.agent-task-chip--done {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
+.agent-task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-task-tick {
+  flex-shrink: 0;
+}
+
+/* ── AI session meta / tasks ─────────────────────────────── */
+
+.ai-chat-session-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--accent));
+}
+
+.ai-chat-memory-badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.ai-chat-task-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 96px;
+  overflow: auto;
+  padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: left;
+  padding: 0.2rem 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ai-task-row:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.ai-task-row--done {
+  color: var(--accent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.ai-task-tick {
+  font-family: var(--font-mono);
+  width: 1rem;
+}
+
+/* ── Voice liquid glass ──────────────────────────────────── */
+
+.voice-glass {
+  position: fixed;
+  left: 50%;
+  bottom: 3.25rem;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.voice-glass--on {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.voice-glass-panel {
+  min-width: 280px;
+  max-width: min(420px, 92vw);
+  padding: 0.85rem 1rem 0.75rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, #ffffff 16%, transparent),
+      color-mix(in srgb, var(--bg-elevated) 55%, transparent)
+    );
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
+}
+
+.voice-glass-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.voice-glass-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.voice-glass-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.voice-glass-hint {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 40px;
+  margin-bottom: 0.45rem;
+}
+
+.voice-waveform-bar {
+  width: 3px;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 70%, var(--accent)),
+    var(--accent)
+  );
+  transform-origin: center;
+  transition: transform 0.05s linear;
+}
+
+.voice-glass-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  min-height: 1.2em;
+}
+
+.voice-glass-text--muted {
+  color: var(--text-muted);
+}
+
+.voice-glass-text--error {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-glass-dot {
+    animation: none;
+  }
+  .voice-waveform-bar {
+    transition: none;
+  }
+}
+
 .tab-group-panel {
   flex: 1;
   min-height: 0;

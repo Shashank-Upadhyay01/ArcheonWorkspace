@@ -91,25 +91,65 @@ export function extractDeltaContent(parsed: unknown): string | null {
   return null
 }
 
+export interface StreamUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
+/**
+ * Extract token usage from an OpenAI-compatible chunk (often on the final chunk).
+ */
+export function extractUsage(parsed: unknown): StreamUsage | null {
+  if (!parsed || typeof parsed !== 'object') return null
+  const usage = (parsed as { usage?: unknown }).usage
+  if (!usage || typeof usage !== 'object') return null
+  const u = usage as {
+    prompt_tokens?: unknown
+    completion_tokens?: unknown
+    total_tokens?: unknown
+  }
+  const promptTokens = typeof u.prompt_tokens === 'number' ? u.prompt_tokens : 0
+  const completionTokens = typeof u.completion_tokens === 'number' ? u.completion_tokens : 0
+  const totalTokens =
+    typeof u.total_tokens === 'number' ? u.total_tokens : promptTokens + completionTokens
+  if (promptTokens === 0 && completionTokens === 0 && totalTokens === 0) return null
+  return { promptTokens, completionTokens, totalTokens }
+}
+
+export type SseParseResult =
+  | { done: true; usage?: StreamUsage }
+  | { text: string }
+  | { usage: StreamUsage }
+  | null
+
 /**
  * Parse one SSE `data:` payload body. Returns:
  * - `{ done: true }` for `[DONE]`
  * - `{ text }` when delta content present
+ * - `{ usage }` when usage-only payload
  * - `null` for keep-alives / empty / unparseable without error
  */
-export function parseSseDataPayload(data: string): { done: true } | { text: string } | null {
+export function parseSseDataPayload(data: string): SseParseResult {
   const trimmed = data.trim()
   if (!trimmed || trimmed === ':') return null
   if (trimmed === '[DONE]') return { done: true }
   try {
     const parsed: unknown = JSON.parse(trimmed)
+    const usage = extractUsage(parsed)
     const text = extractDeltaContent(parsed)
+    if (text !== null && usage) return { text } // text takes priority; usage may also be sent
     if (text !== null) return { text }
+    if (usage) return { usage }
     return null
   } catch {
     return null
   }
 }
+
+export type ChatStreamEvent =
+  | { type: 'text'; text: string }
+  | { type: 'usage'; usage: StreamUsage }
 
 /**
  * Split an SSE buffer into complete events (double-newline delimited) + remainder.
@@ -139,9 +179,9 @@ export function dataFromSseEvent(eventBlock: string): string | null {
 
 export class AIClient {
   /**
-   * Stream assistant text deltas as an async iterable of strings.
+   * Stream assistant events (text deltas + optional usage).
    */
-  async *chatStream(params: ChatStreamParams): AsyncIterable<string> {
+  async *chatStream(params: ChatStreamParams): AsyncIterable<ChatStreamEvent> {
     const { providerId, model, systemPrompt, messages, apiKey, baseUrl, signal } = params
     if (!apiKey?.trim()) {
       throw new AiClientError('API key is missing')
@@ -158,7 +198,9 @@ export class AIClient {
     const body = {
       model: model.trim(),
       messages: buildApiMessages(messages, systemPrompt),
-      stream: true
+      stream: true,
+      // Ask OpenAI-compatible APIs to include usage on the final chunk when supported
+      stream_options: { include_usage: true }
     }
 
     let response: Response
@@ -226,8 +268,17 @@ export class AIClient {
           if (data === null) continue
           const parsed = parseSseDataPayload(data)
           if (!parsed) continue
-          if ('done' in parsed) return
-          yield parsed.text
+          if ('done' in parsed) {
+            if (parsed.usage) yield { type: 'usage', usage: parsed.usage }
+            return
+          }
+          if ('usage' in parsed && parsed.usage) {
+            yield { type: 'usage', usage: parsed.usage }
+            continue
+          }
+          if ('text' in parsed) {
+            yield { type: 'text', text: parsed.text }
+          }
         }
       }
       // Flush trailing buffer (some servers omit final blank line)
@@ -235,7 +286,10 @@ export class AIClient {
         const data = dataFromSseEvent(buffer) ?? buffer.trim()
         const parsed = parseSseDataPayload(data.startsWith('data:') ? data.slice(5) : data)
         if (parsed && 'text' in parsed) {
-          yield parsed.text
+          yield { type: 'text', text: parsed.text }
+        }
+        if (parsed && 'usage' in parsed && parsed.usage) {
+          yield { type: 'usage', usage: parsed.usage }
         }
       }
     } catch (err) {

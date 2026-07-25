@@ -175,7 +175,16 @@ Until a **public GitHub Release** exists with assets, Check for updates will say
 
 ## Version
 
-Current: **0.2.1** — v1 complete + custom auto-updater. See [CHANGELOG.md](CHANGELOG.md).
+Current: **0.3.0** — sessions, tokens, voice, tasks + auto-updater. See [CHANGELOG.md](CHANGELOG.md).
+
+### Agent sessions & voice
+
+| Feature | How |
+|---------|-----|
+| Token bar | On each AI pane — usage vs model context window |
+| Forever memory | Chat + compact notes persist per pane; New thread folds history into memory |
+| Tasks | Ask the model for `- [ ]` checklists, or **+ Task**; ticks show progress |
+| Voice | **Ctrl+Shift+Space** anywhere you type; liquid-glass waveform while listening |
 
 ## License
 

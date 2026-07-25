@@ -42,6 +42,11 @@ export interface AiChatChunkEvent {
   text?: string
   done?: boolean
   error?: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 export interface IpcHandlerDeps {
@@ -341,7 +346,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       const baseUrl = provider?.baseUrl
       const messages = Array.isArray(req.messages) ? req.messages : []
 
-      for await (const text of aiClient.chatStream({
+      for await (const ev of aiClient.chatStream({
         providerId,
         model,
         systemPrompt: typeof req.systemPrompt === 'string' ? req.systemPrompt : '',
@@ -351,7 +356,11 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
         signal: ac.signal
       })) {
         if (ac.signal.aborted) break
-        sendChunk({ requestId, text })
+        if (ev.type === 'text') {
+          sendChunk({ requestId, text: ev.text })
+        } else if (ev.type === 'usage') {
+          sendChunk({ requestId, usage: ev.usage })
+        }
       }
 
       // Cancelled streams still close cleanly so the renderer can keep partial text.

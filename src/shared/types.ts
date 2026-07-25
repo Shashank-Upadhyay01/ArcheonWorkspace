@@ -33,6 +33,8 @@ export interface Pane {
     model: string
     systemPrompt: string
     threadId: string
+    /** Context window size for this model (tokens). */
+    contextLimit?: number
   }
   cli?: {
     command: string
@@ -41,6 +43,48 @@ export interface Pane {
     cwd: string
     lastExitCode?: number | null
   }
+  /** Shared agent session metadata (tasks, tokens) — also persisted in session files. */
+  agentSession?: AgentSessionMeta
+}
+
+/** Lightweight meta mirrored on the pane for chrome UI. */
+export interface AgentSessionMeta {
+  tokenUsed: number
+  tokenLimit: number
+  tasks: AgentTask[]
+}
+
+export interface AgentTask {
+  id: string
+  title: string
+  done: boolean
+  createdAt: string
+  completedAt?: string
+}
+
+/** Token budget for a pane session. */
+export interface TokenUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  limit: number
+}
+
+/** Compact durable project memory (summaries, not full chat dumps). */
+export interface ProjectMemoryNote {
+  id: string
+  at: string
+  text: string
+  source: 'user' | 'assistant' | 'system' | 'compact'
+}
+
+export interface ProjectMemory {
+  projectKey: string
+  title: string
+  model?: string
+  providerId?: string
+  notes: ProjectMemoryNote[]
+  updatedAt: string
 }
 
 export interface AgentProfile {

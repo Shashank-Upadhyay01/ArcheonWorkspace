@@ -45,6 +45,28 @@ export interface ChatThreadKey {
 
 export interface ChatThread {
   messages: ChatMessage[]
+  tokens?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+    limit: number
+  }
+  tasks?: Array<{
+    id: string
+    title: string
+    done: boolean
+    createdAt: string
+    completedAt?: string
+  }>
+  memoryNotes?: Array<{
+    id: string
+    at: string
+    text: string
+    source: 'user' | 'assistant' | 'system' | 'compact'
+  }>
+  model?: string
+  providerId?: string
+  updatedAt?: string
 }
 
 export interface AiChatRequest {
@@ -60,6 +82,11 @@ export interface AiChatChunkEvent {
   text?: string
   done?: boolean
   error?: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 export interface ArcheonApi {

@@ -15,8 +15,37 @@ export interface PersistedChatMessage {
   content: string
 }
 
+export interface PersistedTokenUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  limit: number
+}
+
+export interface PersistedAgentTask {
+  id: string
+  title: string
+  done: boolean
+  createdAt: string
+  completedAt?: string
+}
+
+export interface PersistedMemoryNote {
+  id: string
+  at: string
+  text: string
+  source: 'user' | 'assistant' | 'system' | 'compact'
+}
+
+/** Full session document (messages + tokens + tasks + memory). */
 export interface ChatThread {
   messages: PersistedChatMessage[]
+  tokens?: PersistedTokenUsage
+  tasks?: PersistedAgentTask[]
+  memoryNotes?: PersistedMemoryNote[]
+  model?: string
+  providerId?: string
+  updatedAt?: string
 }
 
 export class ChatThreadPathError extends Error {
@@ -31,8 +60,36 @@ const chatMessageSchema = z.object({
   content: z.string()
 })
 
+const tokenUsageSchema = z.object({
+  promptTokens: z.number(),
+  completionTokens: z.number(),
+  totalTokens: z.number(),
+  limit: z.number()
+})
+
+const agentTaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  done: z.boolean(),
+  createdAt: z.string(),
+  completedAt: z.string().optional()
+})
+
+const memoryNoteSchema = z.object({
+  id: z.string(),
+  at: z.string(),
+  text: z.string(),
+  source: z.enum(['user', 'assistant', 'system', 'compact'])
+})
+
 const chatThreadSchema = z.object({
-  messages: z.array(chatMessageSchema)
+  messages: z.array(chatMessageSchema),
+  tokens: tokenUsageSchema.optional(),
+  tasks: z.array(agentTaskSchema).optional(),
+  memoryNotes: z.array(memoryNoteSchema).optional(),
+  model: z.string().optional(),
+  providerId: z.string().optional(),
+  updatedAt: z.string().optional()
 })
 
 /** Reject unsafe workspace/pane ids (path traversal, separators, empty). */

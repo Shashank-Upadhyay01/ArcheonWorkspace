@@ -8,6 +8,8 @@ import ShellPane from './components/panes/ShellPane'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
 import TitleBar from './components/TitleBar'
+import VoiceModeOverlay from './components/VoiceModeOverlay'
+import { useVoiceInput } from './hooks/useVoiceInput'
 import type { LayoutNode, Pane } from '@shared/types'
 import { useAppStore } from './stores/app-store'
 
@@ -106,10 +108,27 @@ export default function App(): JSX.Element {
     version: string
     current: string
   } | null>(null)
+  const voice = useVoiceInput()
 
   useEffect(() => {
     void bootstrap()
   }, [bootstrap])
+
+  // Global voice mode: Ctrl+Shift+Space (works over shell, CLI, AI, and forms)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.code === 'Space' || e.key === ' ')) {
+        e.preventDefault()
+        voice.toggle()
+      }
+      if (e.key === 'Escape' && voice.active) {
+        e.preventDefault()
+        voice.stop()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [voice])
 
   // Startup silent check may push "update available" from main
   useEffect(() => {
@@ -204,6 +223,11 @@ export default function App(): JSX.Element {
       </div>
       <StatusBar />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <VoiceModeOverlay
+        active={voice.active}
+        interimText={voice.interim}
+        error={voice.error}
+      />
       {updateToast ? (
         <div className="update-toast" role="status">
           <p className="update-toast-title">Update {updateToast.version} available</p>

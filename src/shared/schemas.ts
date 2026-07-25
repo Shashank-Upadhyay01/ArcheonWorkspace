@@ -41,7 +41,8 @@ export const paneSchema = z.object({
       providerId: z.string(),
       model: z.string(),
       systemPrompt: z.string(),
-      threadId: z.string()
+      threadId: z.string(),
+      contextLimit: z.number().optional()
     })
     .optional(),
   cli: z
@@ -51,6 +52,21 @@ export const paneSchema = z.object({
       env: z.record(z.string()),
       cwd: z.string(),
       lastExitCode: z.number().nullable().optional()
+    })
+    .optional(),
+  agentSession: z
+    .object({
+      tokenUsed: z.number(),
+      tokenLimit: z.number(),
+      tasks: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          done: z.boolean(),
+          createdAt: z.string(),
+          completedAt: z.string().optional()
+        })
+      )
     })
     .optional()
 })

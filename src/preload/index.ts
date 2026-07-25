@@ -56,6 +56,11 @@ export interface AiChatChunkEvent {
   text?: string
   done?: boolean
   error?: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
 }
 
 const archeonApi = {
