@@ -45,7 +45,14 @@ Fonts (IBM Plex Sans / Mono) are **bundled offline** via `@fontsource` — no Go
 ### CI
 
 GitHub Actions runs typecheck, tests, and production build on **Ubuntu + Windows**.  
-Pushes to `main` also package unsigned Windows setup + portable installers and upload them as artifacts.
+Pushes to `main` (and tags / manual **workflow_dispatch**) also package:
+
+| Artifact set | Contents |
+|--------------|----------|
+| `archeon-windows-x64` | NSIS setup + portable `.exe` |
+| `archeon-linux-x64` | AppImage + `.deb` |
+
+Download from the Actions run → Artifacts.
 
 ### Scripts
 
@@ -69,8 +76,8 @@ Artifacts land in `release/` (gitignored).
 
 | Platform | Artifacts (example) |
 | --- | --- |
-| Windows | `Archeon Workspace-0.1.0-win-x64-setup.exe`, `…-portable.exe`, `win-unpacked/` |
-| Linux | AppImage + `.deb` (x64) |
+| Windows | `Archeon Workspace-0.2.0-win-x64-setup.exe`, `…-portable.exe`, `win-unpacked/` |
+| Linux | `Archeon Workspace-0.2.0-linux-x64.AppImage`, `.deb` |
 
 Config: [`electron-builder.yml`](electron-builder.yml). Icon: `build/icon.png`.
 
@@ -137,6 +144,10 @@ CI runs typecheck + tests on `ubuntu-latest` and `windows-latest` (see [`.github
 - [Product design spec](docs/superpowers/specs/2026-07-24-archeon-workspace-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-07-24-archeon-workspace.md)
 
+## Version
+
+Current: **0.2.0** — v1 feature-complete for Windows + Linux. See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-MIT
+[MIT](LICENSE)

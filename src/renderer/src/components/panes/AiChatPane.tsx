@@ -264,11 +264,32 @@ export default function AiChatPane({ pane, workspaceId }: AiChatPaneProps): JSX.
           <button
             type="button"
             className="btn btn--ghost ai-chat-clear"
+            disabled={messages.length === 0 && !streamText}
+            onClick={() => {
+              const text = messages
+                .map((m) => `${m.role === 'user' ? 'You' : agentName}: ${m.content}`)
+                .concat(
+                  streamText
+                    ? [`${agentName}: ${streamText}`]
+                    : []
+                )
+                .join('\n\n')
+              void navigator.clipboard.writeText(text).catch(() => {
+                setError('Could not copy to clipboard')
+              })
+            }}
+            title="Copy conversation"
+          >
+            Copy
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost ai-chat-clear"
             disabled={streaming || messages.length === 0}
             onClick={clearThread}
-            title="Clear thread"
+            title="New thread (clear history)"
           >
-            Clear
+            New thread
           </button>
         </div>
       </div>

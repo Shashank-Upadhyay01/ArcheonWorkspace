@@ -79,6 +79,8 @@ interface AppState {
   addPane: (type: PaneType, direction?: 'h' | 'v', anchorPaneId?: string) => Promise<void>
   /** Create a new pane as a tab next to the anchor (active pane by default). */
   addPaneAsTab: (type: PaneType, anchorPaneId?: string) => Promise<void>
+  /** Clone a pane as a split to the right of the source. */
+  duplicatePane: (paneId: string) => Promise<void>
   closePane: (id: string) => Promise<void>
   renamePane: (id: string, name: string) => void
   setPaneColor: (id: string, color: string) => void
@@ -878,6 +880,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     const layout = reorderTabs(ws.layout, paneIdInGroup, fromIndex, toIndex)
     if (layout === ws.layout) return
     dirtyWorkspace(set, get, { ...ws, layout })
+  },
+
+  async duplicatePane(paneId: string) {
+    const ws = get().activeWorkspace
+    if (!ws || !ws.panes[paneId]) return
+    const source = ws.panes[paneId]
+    const newId = createId('pane')
+    const clone: Pane = structuredClone(source)
+    clone.id = newId
+    clone.name = `${source.name} copy`
+    if (clone.aiChat) {
+      clone.aiChat = { ...clone.aiChat, threadId: createId('thread') }
+    }
+    let layout = splitNode(ws.layout, paneId, 'h', newId)
+    if (layout === ws.layout) {
+      const ids = orderedPaneIds(ws.layout)
+      const fallback = ids[0]
+      if (fallback) layout = splitNode(ws.layout, fallback, 'h', newId)
+    }
+    if (layout === ws.layout) return
+    const next: Workspace = {
+      ...ws,
+      panes: { ...ws.panes, [newId]: clone },
+      layout,
+      activePaneId: newId
+    }
+    dirtyWorkspace(set, get, next)
+    await get().flushSave()
   },
 
   async closePane(id: string) {

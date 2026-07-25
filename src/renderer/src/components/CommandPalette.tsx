@@ -36,6 +36,8 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
   const broadcastPaneIds = useAppStore((s) => s.broadcastPaneIds)
   const addPane = useAppStore((s) => s.addPane)
   const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
+  const duplicatePane = useAppStore((s) => s.duplicatePane)
+  const saveUserPreset = useAppStore((s) => s.saveUserPreset)
   const applyPreset = useAppStore((s) => s.applyPreset)
   const selectWorkspace = useAppStore((s) => s.selectWorkspace)
   const focusPane = useAppStore((s) => s.focusPane)
@@ -90,6 +92,29 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
         group: 'Panes',
         keywords: 'tabs tab group',
         run: runAndClose(() => addPaneAsTab('shell'))
+      },
+      {
+        id: 'duplicate-pane',
+        label: 'Duplicate focused pane',
+        group: 'Panes',
+        keywords: 'clone copy',
+        run: runAndClose(() => {
+          const id = activeWorkspace?.activePaneId
+          if (id) void duplicatePane(id)
+        })
+      },
+      {
+        id: 'save-preset',
+        label: 'Save current layout as preset…',
+        group: 'Presets',
+        keywords: 'user layout',
+        run: runAndClose(() => {
+          const name =
+            typeof window !== 'undefined'
+              ? window.prompt('Preset name', `Layout ${new Date().toLocaleDateString()}`)
+              : null
+          if (name?.trim()) void saveUserPreset(name.trim())
+        })
       },
       {
         id: 'focus-next',
@@ -194,6 +219,8 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
     broadcastPaneIds,
     addPane,
     addPaneAsTab,
+    duplicatePane,
+    saveUserPreset,
     applyPreset,
     selectWorkspace,
     focusPane,

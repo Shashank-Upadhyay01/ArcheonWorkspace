@@ -1,6 +1,6 @@
 {
   "name": "archeon-workspace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Multi-agent terminal workspace for Windows and Linux",
   "main": "./out/main/index.js",
   "author": "Shashank-Upadhyay01",

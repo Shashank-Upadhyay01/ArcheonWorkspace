@@ -33,6 +33,7 @@ export default function PaneChrome({
   const closePane = useAppStore((s) => s.closePane)
   const addPane = useAppStore((s) => s.addPane)
   const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
+  const duplicatePane = useAppStore((s) => s.duplicatePane)
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(pane.name)
@@ -194,6 +195,18 @@ export default function PaneChrome({
                   }}
                 >
                   New tab here
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="pane-chrome-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    void duplicatePane(pane.id)
+                  }}
+                >
+                  Duplicate pane
                 </button>
                 <button
                   type="button"

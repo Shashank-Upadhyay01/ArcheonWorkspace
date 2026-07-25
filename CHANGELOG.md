@@ -1,0 +1,27 @@
+# Changelog
+
+All notable changes to Archeon Workspace are documented in this file.
+
+## [0.2.0] — 2026-07-25
+
+### Complete v1 product surface
+
+- **Windows + Linux packaging** via electron-builder (setup/portable, AppImage/deb)
+- **CI** typecheck/test/build on Ubuntu + Windows; package artifacts on `main` / tags / manual run
+- **Offline fonts** (IBM Plex Sans/Mono via `@fontsource`)
+- **Tabs** — open as tab, drag reorder, close, Ctrl+T
+- **Light / dark themes**
+- **Keyboard** — Ctrl+K palette, Ctrl+] / [ focus cycle
+- **Shell restart**, AI stream cancel / Stop, New thread + Copy conversation
+- **Duplicate pane**, save layout preset from palette
+- Secure API keys, workspace export/import, broadcast input, agent profiles
+- Architecture policy: engines for hard systems, product code owned (`docs/ARCHITECTURE.md`)
+
+## [0.1.0] — 2026-07-24
+
+### Initial release
+
+- Electron + React multi-agent terminal workspace scaffold
+- Shell (node-pty + xterm), AI chat, CLI agent panes
+- Dock layouts, presets, multi-workspace persistence
+- Command palette, roster, mission-control UI
