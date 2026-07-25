@@ -68,12 +68,13 @@ describe('resolveCwd', () => {
 
 describe('resolveSpawnTarget', () => {
   it('prefers custom command + args over shellId', () => {
-    expect(
-      resolveSpawnTarget({ command: 'claude', args: ['--dangerously-skip-permissions'], shellId: 'default' }, 'win32')
-    ).toEqual({
-      file: 'claude',
-      args: ['--dangerously-skip-permissions']
-    })
+    const target = resolveSpawnTarget(
+      { command: 'claude', args: ['--dangerously-skip-permissions'], shellId: 'default' },
+      'win32'
+    )
+    // May resolve to absolute path when claude is installed
+    expect(target.file.toLowerCase()).toContain('claude')
+    expect(target.args).toEqual(['--dangerously-skip-permissions'])
   })
 
   it('trims command and falls back to shell when empty', () => {
@@ -84,10 +85,9 @@ describe('resolveSpawnTarget', () => {
   })
 
   it('defaults args to empty array for custom command', () => {
-    expect(resolveSpawnTarget({ command: 'aider' }, 'linux')).toEqual({
-      file: 'aider',
-      args: []
-    })
+    const target = resolveSpawnTarget({ command: 'aider' }, 'linux')
+    expect(target.file.toLowerCase()).toContain('aider')
+    expect(target.args).toEqual([])
   })
 })
 

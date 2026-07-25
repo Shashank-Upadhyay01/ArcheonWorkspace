@@ -211,7 +211,9 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps): JS
               spellCheck={false}
             />
             <span className="settings-hint">
-              Write-only: the stored key is never shown. Keys use OS encryption (safeStorage).
+              Optional for later. Prefer <strong>Claude Code</strong> / <strong>Grok Build</strong>{' '}
+              CLI panes with your existing subscriptions (no key here). Keys are write-only and use
+              OS encryption (safeStorage) when you use built-in AI chat.
             </span>
           </label>
 

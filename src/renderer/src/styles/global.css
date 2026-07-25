@@ -1858,6 +1858,40 @@ button {
   color: var(--danger);
 }
 
+.empty-ctas--featured {
+  margin-bottom: 1.25rem;
+}
+
+.empty-cta--featured {
+  min-width: 200px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.empty-cta-badge {
+  margin-top: 0.45rem;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.empty-subhead {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cli-agent-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 90%, var(--accent));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .voice-glass-dot {
     animation: none;

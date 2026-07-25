@@ -10,6 +10,7 @@ import StatusBar from './components/StatusBar'
 import TitleBar from './components/TitleBar'
 import VoiceModeOverlay from './components/VoiceModeOverlay'
 import { useVoiceInput } from './hooks/useVoiceInput'
+import { getBuiltinProfile } from '@shared/profiles'
 import type { LayoutNode, Pane } from '@shared/types'
 import { useAppStore } from './stores/app-store'
 
@@ -32,6 +33,7 @@ function WorkspaceDock(): JSX.Element {
   const focusPane = useAppStore((s) => s.focusPane)
   const addPane = useAppStore((s) => s.addPane)
   const addPaneAsTab = useAppStore((s) => s.addPaneAsTab)
+  const applyProfile = useAppStore((s) => s.applyProfile)
 
   const onChangeLayout = useCallback(
     (layout: LayoutNode) => {
@@ -64,15 +66,35 @@ function WorkspaceDock(): JSX.Element {
           <button type="button" className="btn btn--ghost" onClick={() => void addPane('shell')}>
             + Shell
           </button>
-          <button type="button" className="btn btn--ghost" onClick={() => void addPane('ai_chat')}>
-            + AI
+          <button
+            type="button"
+            className="btn btn--ghost"
+            title="Claude Code — uses your Claude subscription CLI"
+            onClick={() => {
+              const p = getBuiltinProfile('builtin_claude')
+              if (p) void applyProfile(p)
+            }}
+          >
+            + Claude
           </button>
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={() => void addPane('cli_agent')}
+            title="Grok Build — uses your Grok CLI subscription"
+            onClick={() => {
+              const p = getBuiltinProfile('builtin_grok')
+              if (p) void applyProfile(p)
+            }}
           >
-            + CLI
+            + Grok
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            title="Built-in AI chat (API key optional for later)"
+            onClick={() => void addPane('ai_chat')}
+          >
+            + AI API
           </button>
           <button
             type="button"

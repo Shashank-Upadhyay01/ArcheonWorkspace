@@ -6,6 +6,8 @@ export interface CliAgentDefaults {
   args: string[]
   env: Record<string, string>
   cwd: string
+  /** Short blurb shown in UI (subscription vs API). */
+  blurb?: string
 }
 
 export function emptyCliDefaults(): CliAgentDefaults {
@@ -29,12 +31,14 @@ export function parseCliDefaults(raw: unknown): CliAgentDefaults {
     base.env = env
   }
   if (typeof o.cwd === 'string') base.cwd = o.cwd
+  if (typeof o.blurb === 'string') base.blurb = o.blurb
   return base
 }
 
 /**
- * Built-in CLI agent profile templates.
- * Not auto-spawned; user can apply/clone and edit command strings.
+ * Built-in CLI agent profile templates for subscription CLIs you already pay for.
+ * These do NOT use Archeon API keys — auth is handled by each CLI login.
+ * Not auto-spawned; apply from sidebar or empty-workspace quick launch.
  */
 export function builtinAgentProfiles(): AgentProfile[] {
   return [
@@ -48,7 +52,23 @@ export function builtinAgentProfiles(): AgentProfile[] {
         command: 'claude',
         args: [],
         env: {},
-        cwd: ''
+        cwd: '',
+        blurb: 'Uses your Claude subscription (claude login). No API key in Archeon.'
+      }
+    },
+    {
+      id: 'builtin_grok',
+      name: 'Grok Build',
+      color: '#3dd6c6',
+      icon: 'grok',
+      kind: 'cli_agent',
+      defaults: {
+        // Your install: %USERPROFILE%\.grok\bin\grok.exe
+        command: 'grok',
+        args: [],
+        env: {},
+        cwd: '',
+        blurb: 'Uses your Grok / xAI subscription CLI. No API key in Archeon.'
       }
     },
     {
@@ -61,7 +81,8 @@ export function builtinAgentProfiles(): AgentProfile[] {
         command: 'codex',
         args: [],
         env: {},
-        cwd: ''
+        cwd: '',
+        blurb: 'OpenAI Codex CLI (if installed). Subscription/login via that tool.'
       }
     },
     {
@@ -74,12 +95,13 @@ export function builtinAgentProfiles(): AgentProfile[] {
         command: 'aider',
         args: [],
         env: {},
-        cwd: ''
+        cwd: '',
+        blurb: 'Aider coding agent (if installed).'
       }
     },
     {
       id: 'builtin_custom',
-      name: 'Custom',
+      name: 'Custom CLI',
       color: '#8b97a8',
       icon: 'custom',
       kind: 'cli_agent',
@@ -87,7 +109,8 @@ export function builtinAgentProfiles(): AgentProfile[] {
         command: '',
         args: [],
         env: {},
-        cwd: ''
+        cwd: '',
+        blurb: 'Any command on your PATH.'
       }
     }
   ]
@@ -95,6 +118,10 @@ export function builtinAgentProfiles(): AgentProfile[] {
 
 export function isBuiltinProfileId(id: string): boolean {
   return id.startsWith('builtin_')
+}
+
+export function getBuiltinProfile(id: string): AgentProfile | undefined {
+  return builtinAgentProfiles().find((p) => p.id === id)
 }
 
 /** Serialize env map as KEY=value lines for a simple textarea editor. */

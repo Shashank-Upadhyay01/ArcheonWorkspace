@@ -402,6 +402,12 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
             )}
           </div>
         </div>
+        {(command === 'claude' || command === 'grok' || command.endsWith('\\claude.exe') || command.endsWith('\\grok.exe') || command.endsWith('/claude') || command.endsWith('/grok')) ? (
+          <p className="cli-agent-hint">
+            Subscription CLI — auth is your {command.includes('claude') ? 'Claude' : 'Grok'} login,
+            not an Archeon API key. Press <strong>Start</strong> to open the interactive agent.
+          </p>
+        ) : null}
         <div className="cli-agent-config">
           <label className="cli-agent-field">
             <span>cmd</span>

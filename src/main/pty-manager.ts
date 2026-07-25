@@ -4,6 +4,7 @@ import * as pty from 'node-pty'
 import type { IPty } from 'node-pty'
 import { createId } from '../shared/ids'
 import { IpcChannels } from '../shared/ipc'
+import { enrichPath, resolveCommandPath } from './resolve-command'
 
 export interface PtySpawnOptions {
   paneId: string
@@ -55,11 +56,14 @@ export function resolveShell(
  */
 export function resolveSpawnTarget(
   opts: Pick<PtySpawnOptions, 'command' | 'args' | 'shellId'>,
-  platform: NodeJS.Platform = process.platform
+  platform: NodeJS.Platform = process.platform,
+  envPath?: string
 ): { file: string; args: string[] } {
   const command = opts.command?.trim()
   if (command) {
-    return { file: command, args: Array.isArray(opts.args) ? [...opts.args] : [] }
+    // Resolve bare names (claude, grok) to absolute paths using enriched PATH
+    const file = resolveCommandPath(command, envPath ?? enrichPath(process.env, platform), platform)
+    return { file, args: Array.isArray(opts.args) ? [...opts.args] : [] }
   }
   return resolveShell(opts.shellId || 'default', platform)
 }
@@ -103,11 +107,16 @@ export class PtyManager {
 
   spawn(opts: PtySpawnOptions): PtySpawnResult {
     const sessionId = createId('pty')
-    const { file, args } = resolveSpawnTarget(opts, process.platform)
+    // Ensure subscription CLIs (claude, grok, …) are visible even if Electron PATH is thin
+    const pathValue = enrichPath(process.env, process.platform)
+    const { file, args } = resolveSpawnTarget(opts, process.platform, pathValue)
     const cwd = resolveCwd(opts.cwd)
     const cols = Math.max(2, opts.cols || 80)
     const rows = Math.max(1, opts.rows || 24)
-    const env = mergeEnv(process.env, opts.env)
+    const env = mergeEnv(process.env, {
+      ...(process.platform === 'win32' ? { Path: pathValue, PATH: pathValue } : { PATH: pathValue }),
+      ...opts.env
+    })
 
     let term: IPty
     try {
@@ -122,7 +131,7 @@ export class PtyManager {
       const message = err instanceof Error ? err.message : String(err)
       const payload: PtyErrorPayload = {
         code: 'SPAWN_FAILED',
-        message: `Failed to spawn "${file}": ${message}`,
+        message: `Failed to spawn "${file}": ${message}. If this is Claude/Grok, confirm the CLI is installed and on PATH (e.g. claude, grok).`,
         paneId: opts.paneId,
         sessionId
       }

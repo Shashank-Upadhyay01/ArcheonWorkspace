@@ -177,6 +177,19 @@ Until a **public GitHub Release** exists with assets, Check for updates will say
 
 Current: **0.3.0** — sessions, tokens, voice, tasks + auto-updater. See [CHANGELOG.md](CHANGELOG.md).
 
+### Subscription CLIs (no API key)
+
+If you pay for **Claude** or **Grok Build**, use those CLIs inside Archeon — login stays with that tool:
+
+| Button / profile | Command | Auth |
+|------------------|---------|------|
+| **+ Claude** | `claude` | Your Claude Code subscription |
+| **+ Grok** | `grok` | Your Grok Build subscription |
+
+Also under **Profiles** in the sidebar. Press **Start** on the CLI pane after it opens.
+
+Built-in **AI chat** still supports API keys when you want them later (Settings) — optional.
+
 ### Agent sessions & voice
 
 | Feature | How |

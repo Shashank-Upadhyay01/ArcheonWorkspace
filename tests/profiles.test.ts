@@ -9,9 +9,11 @@ import {
 } from '../src/shared/profiles'
 
 describe('builtinAgentProfiles', () => {
-  it('includes Claude, Codex, Aider, and Custom templates', () => {
+  it('includes Claude, Grok, Codex, Aider, and Custom templates', () => {
     const names = builtinAgentProfiles().map((p) => p.name)
-    expect(names).toEqual(expect.arrayContaining(['Claude Code', 'Codex', 'Aider', 'Custom']))
+    expect(names).toEqual(
+      expect.arrayContaining(['Claude Code', 'Grok Build', 'Codex', 'Aider', 'Custom CLI'])
+    )
     for (const p of builtinAgentProfiles()) {
       expect(p.kind).toBe('cli_agent')
       expect(isBuiltinProfileId(p.id)).toBe(true)
@@ -22,6 +24,8 @@ describe('builtinAgentProfiles', () => {
   it('does not auto-spawn — commands are editable strings', () => {
     const claude = builtinAgentProfiles().find((p) => p.id === 'builtin_claude')!
     expect(parseCliDefaults(claude.defaults).command).toBe('claude')
+    const grok = builtinAgentProfiles().find((p) => p.id === 'builtin_grok')!
+    expect(parseCliDefaults(grok.defaults).command).toBe('grok')
     const custom = builtinAgentProfiles().find((p) => p.id === 'builtin_custom')!
     expect(parseCliDefaults(custom.defaults).command).toBe('')
   })
