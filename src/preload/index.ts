@@ -176,6 +176,10 @@ const archeonApi = {
     ackBeforeQuitSave: (): void => {
       ipcRenderer.send(IpcChannels.appBeforeQuitSaveDone)
     }
+  },
+  shell: {
+    openExternal: (url: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.shellOpenExternal, url)
   }
 }
 

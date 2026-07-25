@@ -4,6 +4,10 @@ import { Terminal } from 'xterm'
 import type { Pane } from '@shared/types'
 import { getArcheonApi } from '../../lib/ipc'
 import { writePtyInput } from '../../lib/pty-input'
+import {
+  createProductTerminal,
+  serializeTerminalScrollback
+} from '../../lib/terminal'
 import { useAppStore } from '../../stores/app-store'
 import 'xterm/css/xterm.css'
 
@@ -13,24 +17,6 @@ const SCROLLBACK_SAVE_MS = 5000
 export interface ShellPaneProps {
   pane: Pane
   workspaceId: string
-}
-
-function serializeScrollback(term: Terminal): string {
-  const buffer = term.buffer.active
-  const len = buffer.length
-  const start = Math.max(0, len - SCROLLBACK_CAP)
-  const lines: string[] = []
-  for (let i = start; i < len; i++) {
-    const line = buffer.getLine(i)
-    if (line) {
-      lines.push(line.translateToString(true))
-    }
-  }
-  // Drop trailing empty line noise from the active cursor row when idle
-  while (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop()
-  }
-  return lines.join('\n')
 }
 
 export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.Element {
@@ -69,49 +55,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
       return
     }
 
-    const term = new Terminal({
-      cursorBlink: true,
-      fontFamily: 'IBM Plex Mono, ui-monospace, Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.2,
-      theme: {
-        background:
-          getComputedStyle(document.documentElement).getPropertyValue('--term-bg').trim() ||
-          '#0e1116',
-        foreground:
-          getComputedStyle(document.documentElement).getPropertyValue('--term-fg').trim() ||
-          '#e8eef7',
-        cursor:
-          getComputedStyle(document.documentElement).getPropertyValue('--term-cursor').trim() ||
-          '#3dd6c6',
-        cursorAccent:
-          getComputedStyle(document.documentElement).getPropertyValue('--term-bg').trim() ||
-          '#0e1116',
-        selectionBackground:
-          getComputedStyle(document.documentElement).getPropertyValue('--term-selection').trim() ||
-          'rgba(61, 214, 198, 0.28)',
-        black: '#0e1116',
-        red: '#f07178',
-        green: '#3dd6c6',
-        yellow: '#e6b450',
-        blue: '#6cb6ff',
-        magenta: '#c792ea',
-        cyan: '#89ddff',
-        white: '#e8eef7',
-        brightBlack: '#8b97a8',
-        brightRed: '#f07178',
-        brightGreen: '#3dd6c6',
-        brightYellow: '#e6b450',
-        brightBlue: '#6cb6ff',
-        brightMagenta: '#c792ea',
-        brightCyan: '#89ddff',
-        brightWhite: '#ffffff'
-      },
-      allowProposedApi: true,
-      scrollback: SCROLLBACK_CAP
-    })
-    const fitAddon = new FitAddon()
-    term.loadAddon(fitAddon)
+    const { term, fitAddon } = createProductTerminal()
     term.open(host)
     termRef.current = term
     fitRef.current = fitAddon
@@ -127,7 +71,7 @@ export default function ShellPane({ pane, workspaceId }: ShellPaneProps): JSX.El
 
     const persistScrollback = (): void => {
       if (!termRef.current || disposedRef.current) return
-      const text = serializeScrollback(termRef.current)
+      const text = serializeTerminalScrollback(termRef.current, SCROLLBACK_CAP)
       void api.session
         .saveScrollback({ workspaceId, paneId: pane.id, text })
         .catch(() => {

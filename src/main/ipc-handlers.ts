@@ -1,4 +1,4 @@
-import { dialog, ipcMain, type WebContents } from 'electron'
+import { dialog, ipcMain, shell, type WebContents } from 'electron'
 import fs from 'fs'
 import { IpcChannels } from '../shared/ipc'
 import type {
@@ -376,6 +376,22 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     } finally {
       aiAbortByRequest.delete(requestId)
     }
+  })
+
+  ipcMain.handle(IpcChannels.shellOpenExternal, async (_event, url: string) => {
+    if (typeof url !== 'string' || url.length === 0 || url.length > 2048) {
+      throw new Error('Invalid URL')
+    }
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw new Error('Invalid URL')
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('Only http(s) URLs can be opened')
+    }
+    await shell.openExternal(parsed.toString())
   })
 }
 

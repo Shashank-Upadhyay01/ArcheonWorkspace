@@ -18,6 +18,19 @@ Multi-agent terminal desktop app for **Windows** and **Linux**. Dockable shell p
 - Command palette (`Ctrl+K` / `Cmd+K`), agent roster, broadcast input
 - Export / import workspaces (secrets stripped)
 
+## Architecture (libraries vs custom)
+
+**Best approach used here:** hard engines from the ecosystem; product logic custom.
+
+| Keep (engines) | Own (product) |
+|----------------|---------------|
+| Electron, React, xterm.js, node-pty | Dock layouts, workspaces, presets |
+| Zod, Zustand | AI chat, CLI agents, secure keys |
+| electron-builder | Command palette, roster, broadcast, themes |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full policy.  
+We intentionally do **not** reimplement Chromium, a VT terminal, or OS PTYs from scratch.
+
 ## Quick start
 
 ```bash

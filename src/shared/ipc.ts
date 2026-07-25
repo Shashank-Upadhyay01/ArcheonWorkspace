@@ -37,7 +37,9 @@ export const IpcChannels = {
   profilesList: 'profiles:list',
   profilesSave: 'profiles:save',
   profilesUpsert: 'profiles:upsert',
-  profilesDelete: 'profiles:delete'
+  profilesDelete: 'profiles:delete',
+  /** Open a URL in the OS default browser (terminal web links). */
+  shellOpenExternal: 'shell:openExternal'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

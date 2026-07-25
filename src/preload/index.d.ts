@@ -124,6 +124,10 @@ export interface ArcheonApi {
     /** renderer → main: flush complete; close may proceed. */
     ackBeforeQuitSave(): void
   }
+  shell: {
+    /** Open http(s) URL in the OS default browser. */
+    openExternal(url: string): Promise<void>
+  }
 }
 
 declare global {
