@@ -8,10 +8,19 @@ files:
   - out/**/*
   - package.json
 asar: true
+# Prefer prebuilt node-pty binaries (no Visual Studio required for package).
+# Install VS Build Tools only if you must rebuild natives from source.
+npmRebuild: false
+nodeGypRebuild: false
 # node-pty is a native module; unpack so the binary can load at runtime
 asarUnpack:
   - node_modules/node-pty/**/*
+  - node_modules/node-pty/prebuilds/**/*
 win:
+  # Avoid winCodeSign symlink extraction (needs SeCreateSymbolicLinkPrivilege /
+  # Developer Mode). Unsigned local builds are fine for smoke tests.
+  signAndEditExecutable: false
+  signDlls: false
   target:
     - target: nsis
       arch:
@@ -19,13 +28,16 @@ win:
     - target: portable
       arch:
         - x64
-  artifactName: ${productName}-${version}-win-${arch}.${ext}
+  # Default name for NSIS; portable overrides below so artifacts do not clash.
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Archeon Workspace
+portable:
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
 linux:
   target:
     - target: AppImage

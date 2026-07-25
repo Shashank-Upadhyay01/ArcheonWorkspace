@@ -53,18 +53,28 @@ This opens an Electron window titled **Archeon Workspace**.
 
 ## Packaging
 
-Artifacts land in `release/` after `npm run dist:win` or `npm run dist:linux`.
+```bash
+npm run dist:win    # Windows NSIS setup + portable (x64)
+npm run dist:linux  # Linux AppImage + deb (x64) — run on Linux
+```
 
-| Platform | Targets |
+Artifacts land in `release/` (gitignored).
+
+| Platform | Artifacts (example) |
 | --- | --- |
-| Windows | NSIS installer, portable `.exe` (x64) |
-| Linux | AppImage, `.deb` (x64) |
+| Windows | `Archeon Workspace-0.1.0-win-x64-setup.exe`, `…-portable.exe`, `win-unpacked/` |
+| Linux | AppImage + `.deb` (x64) |
 
-Config: [`electron-builder.yml`](electron-builder.yml). Optional icon assets under `build/` (`icon.png` 512×512; Windows also uses generated `.ico` when present).
+Config: [`electron-builder.yml`](electron-builder.yml). Icon: `build/icon.png`.
+
+**Smoke-tested (Windows):** production build + `electron-builder --win --x64` succeeds; `release/win-unpacked/Archeon Workspace.exe` launches; `node-pty` prebuilds unpack under `app.asar.unpacked`.
 
 ### Windows notes
 
-- Requires Node 20+ and a C++ toolchain if `node-pty` needs to rebuild (Visual Studio Build Tools with “Desktop development with C++”).
+- **No Visual Studio required** for normal package: `npmRebuild: false` uses **node-pty prebuilds**.
+- Optional full native rebuild: Visual Studio Build Tools (“Desktop development with C++”), then `npx electron-builder install-app-deps`.
+- **Code signing is off** for local builds (`signAndEditExecutable: false`) so packaging works without symlink privileges / Developer Mode. For public releases, enable signing and a cert.
+- If packaging ever fails on winCodeSign symlinks, enable Windows **Developer Mode** or run as admin, or keep signing disabled for unsigned smoke builds.
 - API keys use Electron `safeStorage` (DPAPI).
 
 ### Linux notes
