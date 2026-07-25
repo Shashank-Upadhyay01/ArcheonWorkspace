@@ -2,6 +2,15 @@
 
 All notable changes to Archeon Workspace are documented in this file.
 
+## [0.2.1] — 2026-07-26
+
+### Custom auto-updater (no electron-updater)
+
+- Check GitHub Releases for newer versions
+- Download installer with progress; launch setup / open package
+- Settings UI + command palette + startup toast when an update is available
+- Pure semver + asset-picker unit tests
+
 ## [0.2.0] — 2026-07-25
 
 ### Complete v1 product surface

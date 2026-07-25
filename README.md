@@ -144,9 +144,38 @@ CI runs typecheck + tests on `ubuntu-latest` and `windows-latest` (see [`.github
 - [Product design spec](docs/superpowers/specs/2026-07-24-archeon-workspace-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-07-24-archeon-workspace.md)
 
+## Auto-update (built from scratch)
+
+Archeon does **not** use `electron-updater`. It ships a small custom updater:
+
+1. App queries **GitHub Releases** (`latest`) for this repo  
+2. Compares versions (semver)  
+3. Picks the right installer for your OS (Windows setup.exe, Linux AppImage/deb)  
+4. Downloads into user data (`…/updates/`) with progress  
+5. Launches the installer (app quits on Windows so files can be replaced)
+
+| UI | Action |
+|----|--------|
+| **Settings → App updates** | Check / Download & install / Open releases |
+| **Ctrl+K → Check for updates** | Opens Settings and checks |
+| Startup (after ~8s) | Silent check; toast if a newer release exists |
+
+**Your workspaces and API keys are not in the install folder** — they stay under Electron `userData` across upgrades.
+
+**How to ship an update for users:**
+
+1. Bump `version` in `package.json`  
+2. Tag e.g. `v0.3.0` and push  
+3. CI builds installers — attach them to a **GitHub Release** (title `v0.3.0`) with the setup/portable/AppImage/deb assets  
+4. Installed apps will see the new release on next check  
+
+Override feed repo with env `ARCHEON_UPDATE_REPO=owner/name` if needed.
+
+Until a **public GitHub Release** exists with assets, Check for updates will say there is nothing to install (or no releases yet).
+
 ## Version
 
-Current: **0.2.0** — v1 feature-complete for Windows + Linux. See [CHANGELOG.md](CHANGELOG.md).
+Current: **0.2.1** — v1 complete + custom auto-updater. See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

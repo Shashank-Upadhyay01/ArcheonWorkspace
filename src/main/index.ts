@@ -7,6 +7,7 @@ import { getUserDataPaths } from './paths'
 import { PtyManager } from './pty-manager'
 import { SecureStore } from './secure-store'
 import { WorkspaceStore } from './workspace-store'
+import { AppUpdater } from './updater'
 
 let store: WorkspaceStore | null = null
 let ptyManager: PtyManager | null = null
@@ -109,11 +110,14 @@ app.whenReady().then(() => {
   // Seed a recovery snapshot on boot (also rewritten on every workspace save)
   recoveryAutosave.touch()
 
+  const updater = new AppUpdater()
+
   registerIpcHandlers({
     store,
     pty: ptyManager,
     sessionsDir,
     secrets,
+    updater,
     onWorkspaceSaved: () => {
       // Debounced snapshot on save so crash recovery stays current without
       // writing on every keystroke path that does not yet persist.
@@ -122,6 +126,23 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+
+  // Silent update check a few seconds after launch (notify only if newer).
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const result = await updater.checkForUpdates()
+        if (!result.updateAvailable || !result.info) return
+        for (const win of BrowserWindow.getAllWindows()) {
+          if (!win.isDestroyed()) {
+            win.webContents.send(IpcChannels.updateAvailable, result)
+          }
+        }
+      } catch {
+        /* offline / no releases — ignore */
+      }
+    })()
+  }, 8000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

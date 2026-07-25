@@ -180,6 +180,48 @@ const archeonApi = {
   shell: {
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke(IpcChannels.shellOpenExternal, url)
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IpcChannels.updateCheck),
+    download: () => ipcRenderer.invoke(IpcChannels.updateDownload),
+    install: () => ipcRenderer.invoke(IpcChannels.updateInstall),
+    openReleasePage: () => ipcRenderer.invoke(IpcChannels.updateOpenRelease),
+    onProgress: (cb: (p: { transferred: number; total: number; percent: number }) => void) => {
+      const handler = (
+        _e: Electron.IpcRendererEvent,
+        p: { transferred: number; total: number; percent: number }
+      ): void => {
+        cb(p)
+      }
+      ipcRenderer.on(IpcChannels.updateProgress, handler)
+      return () => {
+        ipcRenderer.removeListener(IpcChannels.updateProgress, handler)
+      }
+    },
+    onAvailable: (
+      cb: (result: {
+        updateAvailable: boolean
+        currentVersion: string
+        info?: unknown
+        message?: string
+      }) => void
+    ) => {
+      const handler = (
+        _e: Electron.IpcRendererEvent,
+        result: {
+          updateAvailable: boolean
+          currentVersion: string
+          info?: unknown
+          message?: string
+        }
+      ): void => {
+        cb(result)
+      }
+      ipcRenderer.on(IpcChannels.updateAvailable, handler)
+      return () => {
+        ipcRenderer.removeListener(IpcChannels.updateAvailable, handler)
+      }
+    }
   }
 }
 

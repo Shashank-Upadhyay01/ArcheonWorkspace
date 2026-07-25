@@ -208,6 +208,29 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
         group: 'App',
         keywords: 'preferences api key',
         run: runAndClose(() => setSettingsOpen(true))
+      },
+      {
+        id: 'check-updates',
+        label: 'Check for updates',
+        group: 'App',
+        keywords: 'upgrade version release',
+        run: runAndClose(() => {
+          setSettingsOpen(true)
+          // Settings UI owns the check flow; also kick a silent check toast path
+          void (async () => {
+            try {
+              const api = window.archeon
+              if (!api?.update) return
+              const result = await api.update.check()
+              if (result.updateAvailable && result.info) {
+                // User already has Settings open for Download & install
+                console.info('[archeon] update available', result.info.version)
+              }
+            } catch {
+              /* ignore */
+            }
+          })()
+        })
       }
     )
 

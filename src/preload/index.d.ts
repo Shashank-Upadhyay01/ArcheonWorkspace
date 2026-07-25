@@ -128,6 +128,36 @@ export interface ArcheonApi {
     /** Open http(s) URL in the OS default browser. */
     openExternal(url: string): Promise<void>
   }
+  update: {
+    check(): Promise<{
+      updateAvailable: boolean
+      currentVersion: string
+      info?: {
+        version: string
+        name: string
+        body: string
+        htmlUrl: string
+        publishedAt: string
+        asset: { name: string; url: string; size: number }
+        currentVersion: string
+      }
+      message?: string
+    }>
+    download(): Promise<{ path: string; sha256: string }>
+    install(): Promise<{ quitAfter: boolean }>
+    openReleasePage(): Promise<void>
+    onProgress(
+      cb: (p: { transferred: number; total: number; percent: number }) => void
+    ): () => void
+    onAvailable(
+      cb: (result: {
+        updateAvailable: boolean
+        currentVersion: string
+        info?: unknown
+        message?: string
+      }) => void
+    ): () => void
+  }
 }
 
 declare global {

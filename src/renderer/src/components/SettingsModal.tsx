@@ -25,6 +25,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps): JS
   const [secretsUnavailable, setSecretsUnavailable] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null)
+  const [updatePercent, setUpdatePercent] = useState<number | null>(null)
+  const [pendingVersion, setPendingVersion] = useState<string | null>(null)
 
   // Sync local fields when modal opens / settings load
   useEffect(() => {
@@ -33,7 +37,21 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps): JS
     setModel(settings.defaultModel ?? 'grok-2-latest')
     setApiKey('')
     setStatus(null)
+    setUpdateMsg(null)
+    setUpdatePercent(null)
   }, [open, settings])
+
+  useEffect(() => {
+    if (!open) return
+    try {
+      const api = getArcheonApi()
+      return api.update.onProgress((p) => {
+        setUpdatePercent(p.percent)
+      })
+    } catch {
+      return
+    }
+  }, [open])
 
   // Check whether a key is stored for the selected provider
   useEffect(() => {
@@ -198,6 +216,106 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps): JS
           </label>
 
           {status ? <p className="settings-status">{status}</p> : null}
+
+          <div className="settings-divider" role="separator" />
+
+          <div className="settings-field">
+            <span className="settings-label">App updates</span>
+            <p className="settings-hint">
+              Custom updater (no third-party updater lib). Checks GitHub Releases for a newer
+              installer, downloads it, then launches setup. Workspaces and API keys stay in your
+              user data folder.
+            </p>
+            <div className="settings-update-actions">
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={updateBusy}
+                onClick={() => {
+                  void (async () => {
+                    setUpdateBusy(true)
+                    setUpdateMsg(null)
+                    setUpdatePercent(null)
+                    setPendingVersion(null)
+                    try {
+                      const api = getArcheonApi()
+                      const result = await api.update.check()
+                      if (result.updateAvailable && result.info) {
+                        setPendingVersion(result.info.version)
+                        setUpdateMsg(
+                          `Update ${result.info.version} available (you have ${result.currentVersion}). ${result.info.asset.name}`
+                        )
+                      } else {
+                        setUpdateMsg(result.message ?? 'No update available.')
+                      }
+                    } catch (err) {
+                      setUpdateMsg(err instanceof Error ? err.message : String(err))
+                    } finally {
+                      setUpdateBusy(false)
+                    }
+                  })()
+                }}
+              >
+                {updateBusy && updatePercent === null ? 'Checking…' : 'Check for updates'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--accent"
+                disabled={updateBusy || !pendingVersion}
+                onClick={() => {
+                  void (async () => {
+                    setUpdateBusy(true)
+                    setUpdateMsg(`Downloading ${pendingVersion}…`)
+                    try {
+                      const api = getArcheonApi()
+                      const unsub = api.update.onProgress((p) => {
+                        setUpdatePercent(p.percent)
+                        setUpdateMsg(
+                          `Downloading ${pendingVersion}… ${p.percent.toFixed(0)}%`
+                        )
+                      })
+                      try {
+                        await api.update.download()
+                      } finally {
+                        unsub()
+                      }
+                      setUpdateMsg('Download complete. Starting installer…')
+                      await api.update.install()
+                      setUpdateMsg(
+                        'Installer launched. The app will quit so the install can finish.'
+                      )
+                    } catch (err) {
+                      setUpdateMsg(err instanceof Error ? err.message : String(err))
+                    } finally {
+                      setUpdateBusy(false)
+                      setUpdatePercent(null)
+                    }
+                  })()
+                }}
+              >
+                Download & install
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={updateBusy}
+                onClick={() => {
+                  void getArcheonApi().update.openReleasePage()
+                }}
+              >
+                Open releases
+              </button>
+            </div>
+            {updatePercent !== null ? (
+              <div className="settings-progress" aria-valuenow={updatePercent} role="progressbar">
+                <div
+                  className="settings-progress-bar"
+                  style={{ width: `${Math.min(100, updatePercent)}%` }}
+                />
+              </div>
+            ) : null}
+            {updateMsg ? <p className="settings-status">{updateMsg}</p> : null}
+          </div>
         </div>
 
         <div className="modal-footer">

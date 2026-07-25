@@ -27,6 +27,7 @@ import {
   type SecureStore
 } from './secure-store'
 import type { WorkspaceStore } from './workspace-store'
+import type { AppUpdater } from './updater'
 
 export interface AiChatRequest {
   requestId: string
@@ -51,6 +52,8 @@ export interface IpcHandlerDeps {
   aiClient?: AIClient
   /** Called after a successful workspace save so recovery snapshot stays fresh. */
   onWorkspaceSaved?: () => void
+  /** Optional custom auto-updater instance. */
+  updater?: AppUpdater
 }
 
 /**
@@ -58,7 +61,7 @@ export interface IpcHandlerDeps {
  * Call once after the store / PtyManager / SecureStore are constructed on app ready.
  */
 export function registerIpcHandlers(deps: IpcHandlerDeps): void {
-  const { store, pty, sessionsDir, secrets, onWorkspaceSaved } = deps
+  const { store, pty, sessionsDir, secrets, onWorkspaceSaved, updater } = deps
   const aiClient = deps.aiClient ?? new AIClient()
   /** requestId → AbortController for in-flight AI streams */
   const aiAbortByRequest = new Map<string, AbortController>()
@@ -392,6 +395,46 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       throw new Error('Only http(s) URLs can be opened')
     }
     await shell.openExternal(parsed.toString())
+  })
+
+  // ── Custom auto-updater ────────────────────────────────────────────
+  ipcMain.handle(IpcChannels.updateCheck, async () => {
+    if (!updater) {
+      return {
+        updateAvailable: false,
+        currentVersion: '0.0.0',
+        message: 'Updater not available in this build.'
+      }
+    }
+    return updater.checkForUpdates()
+  })
+
+  ipcMain.handle(IpcChannels.updateDownload, async (event) => {
+    if (!updater) throw new Error('Updater not available')
+    const result = await updater.downloadUpdate((p) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IpcChannels.updateProgress, p)
+      }
+    })
+    return result
+  })
+
+  ipcMain.handle(IpcChannels.updateInstall, async () => {
+    if (!updater) throw new Error('Updater not available')
+    const result = await updater.installDownloaded()
+    if (result.quitAfter) {
+      // Give the installer a moment to start, then quit so files can be replaced
+      const { app } = await import('electron')
+      setTimeout(() => {
+        app.quit()
+      }, 500)
+    }
+    return result
+  })
+
+  ipcMain.handle(IpcChannels.updateOpenRelease, async () => {
+    if (!updater) throw new Error('Updater not available')
+    await updater.openReleasePage()
   })
 }
 

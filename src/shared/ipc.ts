@@ -39,7 +39,14 @@ export const IpcChannels = {
   profilesUpsert: 'profiles:upsert',
   profilesDelete: 'profiles:delete',
   /** Open a URL in the OS default browser (terminal web links). */
-  shellOpenExternal: 'shell:openExternal'
+  shellOpenExternal: 'shell:openExternal',
+  /** Custom auto-updater (no electron-updater). */
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateInstall: 'update:install',
+  updateOpenRelease: 'update:openRelease',
+  updateProgress: 'update:progress', // main → renderer
+  updateAvailable: 'update:available' // main → renderer (startup silent check)
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

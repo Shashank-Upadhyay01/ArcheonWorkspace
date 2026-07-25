@@ -66,14 +66,23 @@ delay features and add bugs. The right engines stay; everything that defines
 
 Those are multi-year projects. Archeon’s value is the **workspace product** on top.
 
+## Auto-update
+
+Custom module (`src/main/updater.ts`) — **not** `electron-updater`:
+
+- Feed: GitHub Releases API for `Shashank-Upadhyay01/ArcheonWorkspace`
+- Semver compare in `src/shared/semver.ts`
+- Asset pick in `src/shared/update-assets.ts`
+- Download + install orchestration in main; UI in Settings
+
 ## Future options (only if needed)
 
 | Goal | Option |
 |------|--------|
 | Smaller binary | Evaluate Tauri later; keep same product code shape |
-| Offline fonts | Bundle IBM Plex woff2 under `build/` |
-| Installer CI | GitHub Actions matrix build `dist:win` / `dist:linux` |
+| Signed updates | Code-signing cert + optional signature verify on download |
+| Delta patches | Possible later; full installer is simpler and safer for v1 |
 
 ---
 
-*Last updated: 2026-07-25*
+*Last updated: 2026-07-26*

@@ -100,11 +100,28 @@ export default function App(): JSX.Element {
   const ready = useAppStore((s) => s.ready)
   const error = useAppStore((s) => s.error)
   const activeWorkspace = useAppStore((s) => s.activeWorkspace)
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [updateToast, setUpdateToast] = useState<{
+    version: string
+    current: string
+  } | null>(null)
 
   useEffect(() => {
     void bootstrap()
   }, [bootstrap])
+
+  // Startup silent check may push "update available" from main
+  useEffect(() => {
+    const api = window.archeon
+    if (!api?.update?.onAvailable) return
+    return api.update.onAvailable((result) => {
+      if (!result.updateAvailable || !result.info) return
+      const info = result.info as { version?: string }
+      if (!info.version) return
+      setUpdateToast({ version: info.version, current: result.currentVersion })
+    })
+  }, [])
 
   // Main sends app:before-quit-save on window close; flush then ack so close can proceed.
   useEffect(() => {
@@ -187,6 +204,43 @@ export default function App(): JSX.Element {
       </div>
       <StatusBar />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {updateToast ? (
+        <div className="update-toast" role="status">
+          <p className="update-toast-title">Update {updateToast.version} available</p>
+          <p className="update-toast-body">
+            You have {updateToast.current}. Open Settings to download and install, or view the
+            release notes.
+          </p>
+          <div className="update-toast-actions">
+            <button
+              type="button"
+              className="btn btn--accent"
+              onClick={() => {
+                setSettingsOpen(true)
+                setUpdateToast(null)
+              }}
+            >
+              Open Settings
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                void window.archeon?.update?.openReleasePage()
+              }}
+            >
+              Release notes
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setUpdateToast(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
