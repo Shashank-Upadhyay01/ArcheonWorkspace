@@ -40,6 +40,13 @@ npm run dev
 
 This opens an Electron window titled **Archeon Workspace**.
 
+Fonts (IBM Plex Sans / Mono) are **bundled offline** via `@fontsource` — no Google Fonts CDN.
+
+### CI
+
+GitHub Actions runs typecheck, tests, and production build on **Ubuntu + Windows**.  
+Pushes to `main` also package unsigned Windows setup + portable installers and upload them as artifacts.
+
 ### Scripts
 
 | Script | Description |
