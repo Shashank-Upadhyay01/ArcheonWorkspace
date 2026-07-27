@@ -197,7 +197,7 @@ Built-in **AI chat** still supports API keys when you want them later (Settings)
 | Token bar | On each AI pane — usage vs model context window |
 | Forever memory | Chat + compact notes persist per pane; New thread folds history into memory |
 | Tasks | Ask the model for `- [ ]` checklists, or **+ Task**; ticks show progress |
-| Voice | **Ctrl+Shift+Space** anywhere you type; liquid-glass waveform while listening |
+| Voice | **Ctrl+Shift+Space** — on-device Whisper-tiny (no API key); first run downloads the model |
 
 ## License
 

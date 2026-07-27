@@ -49,7 +49,7 @@ Treated like the OS kernel or GPU driver: we *use* them, we don’t reimplement 
 
 | Area | Approach |
 |------|----------|
-| Local ASR / “voice agent” without OS speech | Train or embed a small model (e.g. streaming CTC/Whisper-class) under `models/` |
+| Local ASR / “voice agent” without OS speech | **Done (v0.4):** on-device Whisper-tiny.en via ONNX (`@xenova/transformers`); our VAD/PCM/resample; first-run download into browser cache |
 | Custom terminal renderer | Canvas/WebGL VT emulator replacing xterm |
 | Native shell without Electron | Tauri or pure Win32/Linux GUI (new product line) |
 

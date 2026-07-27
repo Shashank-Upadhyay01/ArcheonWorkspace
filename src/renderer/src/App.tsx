@@ -250,7 +250,9 @@ export default function App(): JSX.Element {
         levels={voice.levels}
         speaking={voice.speaking}
         interimText={voice.interim}
+        status={voice.status}
         error={voice.error}
+        modelState={voice.modelState}
       />
       {updateToast ? (
         <div className="update-toast" role="status">

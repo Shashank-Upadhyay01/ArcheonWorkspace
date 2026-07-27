@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { computeRms, frequencyToBars, EnergyVad } from '../src/shared/audio-dsp'
+import {
+  computeRms,
+  concatFloat32,
+  frequencyToBars,
+  EnergyVad,
+  resampleLinear,
+  WHISPER_SAMPLE_RATE
+} from '../src/shared/audio-dsp'
 
 describe('voice DSP (from scratch)', () => {
   it('computeRms is zero for silence', () => {
@@ -43,5 +50,18 @@ describe('voice DSP (from scratch)', () => {
       speaking = vad.update(0.001, 20).speaking
     }
     expect(speaking).toBe(false)
+  })
+
+  it('resampleLinear changes length for rate ratio', () => {
+    const input = new Float32Array(4800)
+    for (let i = 0; i < input.length; i++) input[i] = Math.sin(i / 40)
+    const out = resampleLinear(input, 48000, WHISPER_SAMPLE_RATE)
+    expect(out.length).toBe(Math.floor(4800 / (48000 / WHISPER_SAMPLE_RATE)))
+  })
+
+  it('concatFloat32 joins chunks', () => {
+    const a = new Float32Array([1, 2])
+    const b = new Float32Array([3])
+    expect(Array.from(concatFloat32([a, b]))).toEqual([1, 2, 3])
   })
 })

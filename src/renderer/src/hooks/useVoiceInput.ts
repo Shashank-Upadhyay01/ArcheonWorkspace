@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  SystemSpeechBackend,
-  VoiceEngine,
-  type WaveformLevels
-} from '../lib/voice-engine'
+  getWhisperLoadState,
+  onWhisperLoadState,
+  preloadWhisper,
+  type WhisperLoadState
+} from '../lib/local-whisper'
+import { VoiceEngine, type WaveformLevels } from '../lib/voice-engine'
 
 /**
  * Insert text into the currently focused editable control or xterm textarea.
- * From-scratch DOM insertion — no input libraries.
  */
 export function insertTextAtFocus(text: string): boolean {
   const el = document.activeElement as HTMLElement | null
@@ -57,25 +58,29 @@ export interface UseVoiceInputResult {
   supported: boolean
   levels: WaveformLevels
   speaking: boolean
+  status: string
+  modelState: WhisperLoadState
   toggle: () => void
   stop: () => void
+  preloadModel: () => void
 }
 
 const BAR_COUNT = 28
 
 /**
- * Global voice dictation — custom Web Audio capture + VAD + waveform.
- * STT via SystemSpeechBackend (Chromium OS speech) until a local model lands.
+ * Global voice dictation — local Whisper-tiny on-device after first download.
  * Hotkey: Ctrl+Shift+Space (registered by App).
  */
 export function useVoiceInput(): UseVoiceInputResult {
   const [active, setActive] = useState(false)
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState('')
   const [levels, setLevels] = useState<WaveformLevels>(() =>
     Array.from({ length: BAR_COUNT }, () => 0.08)
   )
   const [speaking, setSpeaking] = useState(false)
+  const [modelState, setModelState] = useState<WhisperLoadState>(() => getWhisperLoadState())
   const engineRef = useRef<VoiceEngine | null>(null)
 
   const supported =
@@ -83,12 +88,15 @@ export function useVoiceInput(): UseVoiceInputResult {
     !!navigator.mediaDevices?.getUserMedia &&
     typeof AudioContext !== 'undefined'
 
+  useEffect(() => onWhisperLoadState(setModelState), [])
+
   const stop = useCallback(() => {
     engineRef.current?.stop()
     engineRef.current = null
     setActive(false)
     setInterim('')
     setSpeaking(false)
+    setStatus('')
     setLevels(Array.from({ length: BAR_COUNT }, () => 0.08))
   }, [])
 
@@ -103,6 +111,7 @@ export function useVoiceInput(): UseVoiceInputResult {
         onLevels: setLevels,
         onVad: setSpeaking,
         onInterim: setInterim,
+        onStatus: setStatus,
         onFinal: (text) => {
           const padded = text.endsWith(' ') ? text : `${text} `
           const ok = insertTextAtFocus(padded)
@@ -121,7 +130,9 @@ export function useVoiceInput(): UseVoiceInputResult {
     )
     engineRef.current = engine
     try {
-      await engine.start(new SystemSpeechBackend())
+      // Kick model load in parallel with mic permission
+      preloadWhisper()
+      await engine.start('local')
       setActive(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -135,6 +146,10 @@ export function useVoiceInput(): UseVoiceInputResult {
     else void start()
   }, [active, start, stop])
 
+  const preloadModel = useCallback(() => {
+    preloadWhisper()
+  }, [])
+
   useEffect(() => {
     return () => {
       engineRef.current?.stop()
@@ -142,5 +157,17 @@ export function useVoiceInput(): UseVoiceInputResult {
     }
   }, [])
 
-  return { active, interim, error, supported, levels, speaking, toggle, stop }
+  return {
+    active,
+    interim,
+    error,
+    supported,
+    levels,
+    speaking,
+    status,
+    modelState,
+    toggle,
+    stop,
+    preloadModel
+  }
 }

@@ -74,3 +74,41 @@ export class EnergyVad {
     this.speechMs = 0
   }
 }
+
+/** Linear-interpolation resample (from scratch) to target sample rate. */
+export function resampleLinear(
+  input: Float32Array,
+  fromRate: number,
+  toRate: number
+): Float32Array {
+  if (fromRate === toRate || input.length === 0) {
+    return new Float32Array(input)
+  }
+  const ratio = fromRate / toRate
+  const outLen = Math.max(1, Math.floor(input.length / ratio))
+  const out = new Float32Array(outLen)
+  for (let i = 0; i < outLen; i++) {
+    const src = i * ratio
+    const i0 = Math.floor(src)
+    const i1 = Math.min(i0 + 1, input.length - 1)
+    const t = src - i0
+    out[i] = input[i0] * (1 - t) + input[i1] * t
+  }
+  return out
+}
+
+/** Concatenate Float32 chunks into one buffer. */
+export function concatFloat32(chunks: Float32Array[]): Float32Array {
+  let n = 0
+  for (const c of chunks) n += c.length
+  const out = new Float32Array(n)
+  let o = 0
+  for (const c of chunks) {
+    out.set(c, o)
+    o += c.length
+  }
+  return out
+}
+
+/** Target rate for Whisper-class models. */
+export const WHISPER_SAMPLE_RATE = 16_000

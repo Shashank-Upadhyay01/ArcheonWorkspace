@@ -1858,6 +1858,25 @@ button {
   color: var(--danger);
 }
 
+.voice-glass-dot--live {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.voice-model-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  overflow: hidden;
+  margin-bottom: 0.45rem;
+}
+
+.voice-model-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width 0.2s ease;
+}
+
 .empty-ctas--featured {
   margin-bottom: 1.25rem;
 }

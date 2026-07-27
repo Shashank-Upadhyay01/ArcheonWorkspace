@@ -2,6 +2,15 @@
 
 All notable changes to Archeon Workspace are documented in this file.
 
+## [0.4.0] — 2026-07-27
+
+### Local on-device ASR (Whisper-tiny)
+
+- Voice mode uses **local Whisper-tiny.en** (no cloud ASR API)
+- Our pipeline: mic → Web Audio → FFT waveform → energy VAD → PCM → resample 16 kHz → Whisper
+- First use downloads model weights into browser cache (~40MB); progress shown in voice overlay
+- Pluggable path remains for future custom-trained models
+
 ## [0.3.2] — 2026-07-27
 
 ### From-scratch store + voice DSP
