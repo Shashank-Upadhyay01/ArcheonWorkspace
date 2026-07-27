@@ -1,9 +1,10 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, shell } from 'electron'
 import * as os from 'os'
 import * as pty from 'node-pty'
 import type { IPty } from 'node-pty'
 import { createId } from '../shared/ids'
 import { IpcChannels } from '../shared/ipc'
+import { extractLoginUrls } from '../shared/login-url'
 import { enrichPath, resolveCommandPath } from './resolve-command'
 
 export interface PtySpawnOptions {
@@ -104,6 +105,10 @@ function broadcast(channel: string, payload: unknown): void {
  */
 export class PtyManager {
   private sessions = new Map<string, IPty>()
+  /** OAuth URLs already opened for a session (avoid popup spam). */
+  private openedLoginUrls = new Map<string, Set<string>>()
+  /** Partial line buffer for URL detection across chunk boundaries. */
+  private dataTail = new Map<string, string>()
 
   spawn(opts: PtySpawnOptions): PtySpawnResult {
     const sessionId = createId('pty')
@@ -113,6 +118,8 @@ export class PtyManager {
     const cwd = resolveCwd(opts.cwd)
     const cols = Math.max(2, opts.cols || 80)
     const rows = Math.max(1, opts.rows || 24)
+    // BROWSER helpers rarely work from node-pty; we open login URLs ourselves.
+    // Still enrich PATH so `claude` / `grok` resolve.
     const env = mergeEnv(process.env, {
       ...(process.platform === 'win32' ? { Path: pathValue, PATH: pathValue } : { PATH: pathValue }),
       ...opts.env
@@ -140,17 +147,56 @@ export class PtyManager {
       throw error
     }
 
+    this.openedLoginUrls.set(sessionId, new Set())
+    this.dataTail.set(sessionId, '')
+
     term.onData((data) => {
       broadcast(IpcChannels.ptyData, { sessionId, data })
+      // Auto-open OAuth / login URLs in the system browser (Claude Code, etc.)
+      void this.maybeOpenLoginUrls(sessionId, data, opts.paneId)
     })
 
     term.onExit(({ exitCode }) => {
       this.sessions.delete(sessionId)
+      this.openedLoginUrls.delete(sessionId)
+      this.dataTail.delete(sessionId)
       broadcast(IpcChannels.ptyExit, { sessionId, exitCode: exitCode ?? 0 })
     })
 
     this.sessions.set(sessionId, term)
     return { sessionId }
+  }
+
+  /**
+   * Detect login URLs in PTY output and open once in the real OS browser.
+   * Also notifies the renderer so the CLI pane can show an "Open login" button.
+   */
+  private async maybeOpenLoginUrls(
+    sessionId: string,
+    chunk: string,
+    paneId?: string
+  ): Promise<void> {
+    const prev = this.dataTail.get(sessionId) ?? ''
+    // Keep a tail so URLs split across chunks still match
+    const window = (prev + chunk).slice(-8000)
+    this.dataTail.set(sessionId, window.slice(-2000))
+
+    const urls = extractLoginUrls(window)
+    if (urls.length === 0) return
+
+    const opened = this.openedLoginUrls.get(sessionId) ?? new Set<string>()
+    this.openedLoginUrls.set(sessionId, opened)
+
+    for (const url of urls) {
+      if (opened.has(url)) continue
+      opened.add(url)
+      try {
+        await shell.openExternal(url)
+      } catch {
+        /* fall through — UI can still open manually */
+      }
+      broadcast(IpcChannels.ptyLoginUrl, { sessionId, paneId, url })
+    }
   }
 
   write(sessionId: string, data: string): void {

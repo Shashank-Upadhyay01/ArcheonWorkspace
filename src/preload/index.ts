@@ -29,6 +29,12 @@ export interface PtyExitEvent {
   exitCode: number
 }
 
+export interface PtyLoginUrlEvent {
+  sessionId: string
+  paneId?: string
+  url: string
+}
+
 export interface ScrollbackKey {
   workspaceId: string
   paneId: string
@@ -128,6 +134,15 @@ const archeonApi = {
       ipcRenderer.on(IpcChannels.ptyExit, handler)
       return () => {
         ipcRenderer.removeListener(IpcChannels.ptyExit, handler)
+      }
+    },
+    onLoginUrl: (cb: (event: PtyLoginUrlEvent) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, payload: PtyLoginUrlEvent): void => {
+        cb(payload)
+      }
+      ipcRenderer.on(IpcChannels.ptyLoginUrl, handler)
+      return () => {
+        ipcRenderer.removeListener(IpcChannels.ptyLoginUrl, handler)
       }
     }
   },

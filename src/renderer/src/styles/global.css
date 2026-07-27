@@ -1892,6 +1892,40 @@ button {
   background: color-mix(in srgb, var(--bg-panel) 90%, var(--accent));
 }
 
+.cli-login-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-panel));
+}
+
+.cli-login-banner-text {
+  flex: 1;
+  min-width: 200px;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.cli-login-url {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  word-break: break-all;
+  font-family: var(--font-mono);
+}
+
+.cli-login-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .voice-glass-dot {
     animation: none;

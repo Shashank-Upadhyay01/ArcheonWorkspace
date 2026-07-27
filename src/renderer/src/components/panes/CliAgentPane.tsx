@@ -47,6 +47,9 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
   const [cwd, setCwd] = useState(pane.cli?.cwd ?? '')
   /** After mount we never auto-start; user must confirm relaunch/start. */
   const [awaitingConfirm, setAwaitingConfirm] = useState(true)
+  /** Claude/Grok OAuth URL when browser cannot open from the PTY alone. */
+  const [loginUrl, setLoginUrl] = useState<string | null>(null)
+  const [loginOpened, setLoginOpened] = useState(false)
 
   // Respond to store focusPane requests
   useEffect(() => {
@@ -211,10 +214,32 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- remount on pane/workspace identity only
   }, [pane.id, workspaceId])
 
+  const openLoginInBrowser = useCallback(async (url?: string): Promise<void> => {
+    const target = url ?? loginUrl
+    if (!target) return
+    try {
+      await getArcheonApi().shell.openExternal(target)
+      setLoginOpened(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [loginUrl])
+
+  const copyLoginUrl = useCallback(async (): Promise<void> => {
+    if (!loginUrl) return
+    try {
+      await navigator.clipboard.writeText(loginUrl)
+    } catch {
+      setError('Could not copy URL — select it in the terminal and copy manually.')
+    }
+  }, [loginUrl])
+
   const startAgent = useCallback(async (): Promise<void> => {
     if (status === 'running') return
     setError(null)
     setAwaitingConfirm(false)
+    setLoginUrl(null)
+    setLoginOpened(false)
 
     const cmd = command.trim()
     if (!cmd) {
@@ -269,6 +294,14 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       term.write(ev.data)
     })
 
+    const unsubLogin = api.pty.onLoginUrl
+      ? api.pty.onLoginUrl((ev) => {
+          if (!sessionId || ev.sessionId !== sessionId) return
+          setLoginUrl(ev.url)
+          setLoginOpened(true)
+        })
+      : undefined
+
     unsubExitRef.current = api.pty.onExit((ev) => {
       if (!sessionId || ev.sessionId !== sessionId) return
       sessionIdRef.current = null
@@ -277,8 +310,14 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       setPaneRuntimeStatus(pane.id, 'exited')
       setExitCode(ev.exitCode)
       setAwaitingConfirm(true)
+      unsubLogin?.()
       term.writeln('')
       term.writeln(`\x1b[90m[process exited with code ${ev.exitCode}]\x1b[0m`)
+      if (ev.exitCode !== 0) {
+        term.writeln(
+          `\x1b[90m[tip] If login failed: click Open login URL, finish in browser, paste the code here, then Relaunch.]\x1b[0m`
+        )
+      }
       updatePaneCli(pane.id, { lastExitCode: ev.exitCode })
       persistScrollback()
       if (saveTimerRef.current) {
@@ -448,6 +487,45 @@ export default function CliAgentPane({ pane, workspaceId }: CliAgentPaneProps): 
       {error ? (
         <div className="shell-pane-banner shell-pane-banner--error" role="alert">
           {error}
+        </div>
+      ) : null}
+
+      {loginUrl ? (
+        <div className="cli-login-banner" role="status">
+          <div className="cli-login-banner-text">
+            <strong>Claude/Grok login</strong>
+            {loginOpened
+              ? ' — browser should have opened. Finish sign-in, then paste the code into the terminal below.'
+              : ' — the browser could not open from the embedded terminal. Open the URL manually:'}
+            <code className="cli-login-url" title={loginUrl}>
+              {loginUrl.length > 72 ? `${loginUrl.slice(0, 72)}…` : loginUrl}
+            </code>
+          </div>
+          <div className="cli-login-banner-actions">
+            <button
+              type="button"
+              className="btn btn--accent btn--sm"
+              onClick={() => void openLoginInBrowser()}
+            >
+              Open login URL
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => void copyLoginUrl()}
+            >
+              Copy URL
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                termRef.current?.focus()
+              }}
+            >
+              Focus terminal
+            </button>
+          </div>
         </div>
       ) : null}
 

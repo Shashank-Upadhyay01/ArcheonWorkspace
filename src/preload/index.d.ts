@@ -33,6 +33,12 @@ export interface PtyExitEvent {
   exitCode: number
 }
 
+export interface PtyLoginUrlEvent {
+  sessionId: string
+  paneId?: string
+  url: string
+}
+
 export interface ScrollbackKey {
   workspaceId: string
   paneId: string
@@ -127,6 +133,8 @@ export interface ArcheonApi {
     kill(sessionId: string): Promise<void>
     onData(cb: (event: PtyDataEvent) => void): () => void
     onExit(cb: (event: PtyExitEvent) => void): () => void
+    /** OAuth/login URL seen in CLI output (browser may already have opened). */
+    onLoginUrl(cb: (event: PtyLoginUrlEvent) => void): () => void
   }
   session: {
     saveScrollback(key: ScrollbackKey & { text: string }): Promise<void>

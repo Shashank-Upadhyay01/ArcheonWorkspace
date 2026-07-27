@@ -13,6 +13,8 @@ export const IpcChannels = {
   ptyKill: 'pty:kill',
   ptyData: 'pty:data', // main → renderer event
   ptyExit: 'pty:exit',
+  /** main → renderer: OAuth/login URL detected in CLI output */
+  ptyLoginUrl: 'pty:loginUrl',
   sessionSaveScrollback: 'session:saveScrollback',
   sessionLoadScrollback: 'session:loadScrollback',
   aiChat: 'ai:chat',
