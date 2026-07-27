@@ -12,9 +12,16 @@ export default function TitleBar(): JSX.Element {
   const importWorkspace = useAppStore((s) => s.importWorkspace)
   const settings = useAppStore((s) => s.settings)
   const setTheme = useAppStore((s) => s.setTheme)
+  const pickProjectRoot = useAppStore((s) => s.pickProjectRoot)
+  const setProjectRoot = useAppStore((s) => s.setProjectRoot)
+  const applyPreset = useAppStore((s) => s.applyPreset)
   const themeId = settings?.themeId === 'light' ? 'light' : 'default'
 
   const title = activeWorkspace?.name ?? 'Archeon Workspace'
+  const projectRoot = activeWorkspace?.projectRoot
+  const projectLabel = projectRoot
+    ? projectRoot.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || projectRoot
+    : null
 
   return (
     <>
@@ -46,8 +53,44 @@ export default function TitleBar(): JSX.Element {
               />
             ) : null}
           </h1>
+          {activeWorkspace ? (
+            <button
+              type="button"
+              className={
+                projectLabel
+                  ? 'titlebar-project titlebar-project--set'
+                  : 'titlebar-project'
+              }
+              title={
+                projectRoot
+                  ? `Project: ${projectRoot}\nClick to change · Right-click to clear`
+                  : 'Open a project folder — Claude, Grok, and shells start here'
+              }
+              onClick={() => void pickProjectRoot()}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                if (projectRoot) void setProjectRoot(null)
+              }}
+            >
+              <span className="titlebar-project-icon" aria-hidden="true">
+                ⌂
+              </span>
+              <span className="titlebar-project-label">
+                {projectLabel ?? 'Open project…'}
+              </span>
+            </button>
+          ) : null}
         </div>
         <div className="titlebar-right">
+          <button
+            type="button"
+            className="titlebar-action"
+            title="Claude + Grok + Shell layout"
+            disabled={!activeWorkspace}
+            onClick={() => void applyPreset('war_room')}
+          >
+            War room
+          </button>
           <button
             type="button"
             className="titlebar-action"

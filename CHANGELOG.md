@@ -2,6 +2,15 @@
 
 All notable changes to Archeon Workspace are documented in this file.
 
+## [0.4.1] — 2026-07-27
+
+### Project folder + War Room preset
+
+- Workspace `projectRoot` — shells/CLI agents start in that folder
+- Title bar project chip + empty-state “Open project”
+- **War Room** preset: Claude Code + Grok Build + Shell (and stacked variant)
+- Command palette: open project, apply war room
+
 ## [0.4.0] — 2026-07-27
 
 ### Local on-device ASR (Whisper-tiny)

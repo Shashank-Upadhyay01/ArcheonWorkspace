@@ -37,7 +37,10 @@ interface EmptyWorkspaceProps {
 export default function EmptyWorkspace({ hasWorkspace }: EmptyWorkspaceProps): JSX.Element {
   const addPane = useAppStore((s) => s.addPane)
   const applyProfile = useAppStore((s) => s.applyProfile)
+  const applyPreset = useAppStore((s) => s.applyPreset)
+  const pickProjectRoot = useAppStore((s) => s.pickProjectRoot)
   const createWorkspace = useAppStore((s) => s.createWorkspace)
+  const projectRoot = useAppStore((s) => s.activeWorkspace?.projectRoot)
 
   if (!hasWorkspace) {
     return (
@@ -68,11 +71,49 @@ export default function EmptyWorkspace({ hasWorkspace }: EmptyWorkspaceProps): J
     <div className="empty-workspace">
       <div className="empty-workspace-inner">
         <p className="empty-kicker">Empty workspace</p>
-        <h2 className="empty-title">Launch your subscription agents</h2>
+        <h2 className="empty-title">Open a project, then launch agents</h2>
         <p className="empty-copy">
-          Prefer <strong>Claude Code</strong> or <strong>Grok Build</strong> with the logins you
-          already have — no Archeon API key required. Built-in AI chat can wait until you add a key.
+          Bind a <strong>project folder</strong> so Claude, Grok, and shells start in that
+          directory. Use your subscription CLIs — no Archeon API key required.
         </p>
+
+        <div className="empty-ctas empty-ctas--featured">
+          <button
+            type="button"
+            className="empty-cta empty-cta--featured"
+            onClick={() => void pickProjectRoot()}
+          >
+            <span className="empty-cta-glyph" aria-hidden="true">
+              ⌂
+            </span>
+            <span className="empty-cta-label">
+              {projectRoot ? 'Change project folder' : 'Open project folder'}
+            </span>
+            <span className="empty-cta-desc">
+              {projectRoot
+                ? projectRoot
+                : 'Pick the repo or app you want agents to work in'}
+            </span>
+            <span className="empty-cta-badge">
+              {projectRoot ? 'Project set' : 'Recommended first'}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="empty-cta empty-cta--featured"
+            style={{ borderColor: 'var(--accent)' }}
+            onClick={() => void applyPreset('war_room')}
+          >
+            <span className="empty-cta-glyph" style={{ color: 'var(--accent)' }} aria-hidden="true">
+              ⬡
+            </span>
+            <span className="empty-cta-label">War room</span>
+            <span className="empty-cta-desc">
+              Claude Code + Grok Build + Shell in one layout
+            </span>
+            <span className="empty-cta-badge">Claude · Grok · Shell</span>
+          </button>
+        </div>
 
         <div className="empty-ctas empty-ctas--featured">
           {subscriptionProfiles.map((profile) => (

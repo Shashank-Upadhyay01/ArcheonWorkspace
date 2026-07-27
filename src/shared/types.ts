@@ -10,6 +10,11 @@ export interface Workspace {
   activePaneId?: string
   sidebarCollapsed?: boolean
   themeId?: string
+  /**
+   * Project folder for this workspace. Shells and CLI agents (Claude/Grok)
+   * default their cwd here so sessions open on your code.
+   */
+  projectRoot?: string
 }
 
 export type LayoutNode =

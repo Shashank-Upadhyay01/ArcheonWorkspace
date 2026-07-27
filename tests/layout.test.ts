@@ -44,9 +44,23 @@ describe('layout engine', () => {
     expect(closePane(createLeaf('a'), 'a')).toBeNull()
   })
 
-  it('exposes six built-in presets', () => {
+  it('exposes built-in presets including war room agents layout', () => {
     const ids = builtinPresets().map((p) => p.id)
-    expect(ids).toEqual(['focus', 'pair', 'stack', 'quad', 'war_room', 'ide'])
+    expect(ids).toEqual([
+      'focus',
+      'pair',
+      'stack',
+      'quad',
+      'war_room',
+      'war_room_stack',
+      'ide'
+    ])
+    const war = builtinPresets().find((p) => p.id === 'war_room')!
+    expect(war.paneTemplates?.map((t) => t.type)).toEqual([
+      'cli_agent',
+      'cli_agent',
+      'shell'
+    ])
   })
 
   it('nested close hoists through intermediate splits', () => {

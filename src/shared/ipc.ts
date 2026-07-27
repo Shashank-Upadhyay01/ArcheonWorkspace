@@ -33,6 +33,8 @@ export const IpcChannels = {
   appBeforeQuitSaveDone: 'app:before-quit-save-done',
   exportWorkspace: 'workspace:export',
   importWorkspace: 'workspace:import',
+  /** Pick a project folder (directory open dialog). */
+  dialogOpenFolder: 'dialog:openFolder',
   presetsList: 'presets:list',
   presetsSave: 'presets:save',
   presetsUpsert: 'presets:upsert',

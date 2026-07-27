@@ -144,6 +144,20 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     return { canceled: false as const, workspace }
   })
 
+  /** Pick a project directory for the active workspace. */
+  ipcMain.handle(IpcChannels.dialogOpenFolder, async (_event, defaultPath?: string) => {
+    const result = await dialog.showOpenDialog({
+      title: 'Open project folder',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath:
+        typeof defaultPath === 'string' && defaultPath.trim() ? defaultPath.trim() : undefined
+    })
+    if (result.canceled || !result.filePaths[0]) {
+      return { canceled: true as const }
+    }
+    return { canceled: false as const, path: result.filePaths[0] }
+  })
+
   ipcMain.handle(IpcChannels.settingsGet, () => store.getSettings())
 
   ipcMain.handle(IpcChannels.settingsSet, (_event, partial: Partial<AppSettings>) =>

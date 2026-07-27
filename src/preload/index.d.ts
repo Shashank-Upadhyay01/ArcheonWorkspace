@@ -163,6 +163,11 @@ export interface ArcheonApi {
     /** Open http(s) URL in the OS default browser. */
     openExternal(url: string): Promise<void>
   }
+  dialog: {
+    openFolder(
+      defaultPath?: string
+    ): Promise<{ canceled: true } | { canceled: false; path: string }>
+  }
   update: {
     check(): Promise<{
       updateAvailable: boolean

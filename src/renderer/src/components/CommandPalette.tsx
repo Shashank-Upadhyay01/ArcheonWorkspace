@@ -216,14 +216,12 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
         keywords: 'upgrade version release',
         run: runAndClose(() => {
           setSettingsOpen(true)
-          // Settings UI owns the check flow; also kick a silent check toast path
           void (async () => {
             try {
               const api = window.archeon
               if (!api?.update) return
               const result = await api.update.check()
               if (result.updateAvailable && result.info) {
-                // User already has Settings open for Download & install
                 console.info('[archeon] update available', result.info.version)
               }
             } catch {
@@ -231,6 +229,22 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps): 
             }
           })()
         })
+      },
+      {
+        id: 'open-project',
+        label: 'Open project folder…',
+        group: 'Workspace',
+        keywords: 'cwd directory root repo',
+        run: runAndClose(() => {
+          void useAppStore.getState().pickProjectRoot()
+        })
+      },
+      {
+        id: 'war-room',
+        label: 'Apply War Room (Claude + Grok + Shell)',
+        group: 'Presets',
+        keywords: 'subscription agents trio',
+        run: runAndClose(() => applyPreset('war_room'))
       }
     )
 

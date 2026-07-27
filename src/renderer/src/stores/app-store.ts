@@ -90,6 +90,10 @@ interface AppState {
   focusPrevPane: () => void
   reorderPaneTabs: (paneIdInGroup: string, fromIndex: number, toIndex: number) => void
   applyPreset: (presetId: string) => Promise<void>
+  /** Bind workspace (and shell/CLI panes) to a project folder. */
+  setProjectRoot: (path: string | null) => Promise<void>
+  /** Open folder dialog and set project root. */
+  pickProjectRoot: () => Promise<void>
   setTheme: (themeId: 'default' | 'light') => Promise<void>
   saveUserPreset: (name: string) => Promise<void>
   refreshUserPresets: () => Promise<void>
@@ -141,15 +145,16 @@ function clearSaveTimer(): void {
 }
 
 /**
- * cwd: empty string means "resolve to homedir later" (PTY task).
- * Renderer has no os.homedir(); main/Task 7 maps '' → home.
+ * cwd: prefer workspace projectRoot; empty string means "resolve to homedir" in main.
  */
 function paneDefaults(
   type: PaneType,
   id: string,
   color: string,
-  settings?: AppSettings | null
+  settings?: AppSettings | null,
+  projectRoot?: string
 ): Pane {
+  const cwd = projectRoot?.trim() || ''
   const base: Pane = {
     id,
     name: type === 'shell' ? 'Shell' : type === 'ai_chat' ? 'AI Chat' : 'CLI Agent',
@@ -162,7 +167,7 @@ function paneDefaults(
       ...base,
       shell: {
         shellId: settings?.defaultShellId ?? 'default',
-        cwd: ''
+        cwd
       }
     }
   }
@@ -174,7 +179,9 @@ function paneDefaults(
         providerId:
           settings?.defaultProviderId ?? DEFAULT_SETTINGS.defaultProviderId ?? 'xai',
         model: settings?.defaultModel ?? DEFAULT_SETTINGS.defaultModel ?? 'grok-2-latest',
-        systemPrompt: '',
+        systemPrompt: projectRoot
+          ? `Project folder: ${projectRoot}\nPrefer paths relative to this project when suggesting files.`
+          : '',
         threadId: createId('thread')
       }
     }
@@ -186,9 +193,41 @@ function paneDefaults(
       command: '',
       args: [],
       env: {},
-      cwd: ''
+      cwd
     }
   }
+}
+
+/** Apply project root as cwd on all shell/CLI panes (bind agents to the project). */
+function bindPanesToProjectRoot(
+  panes: Record<string, Pane>,
+  projectRoot: string
+): Record<string, Pane> {
+  const root = projectRoot.trim()
+  const next: Record<string, Pane> = {}
+  for (const [id, pane] of Object.entries(panes)) {
+    if (pane.type === 'shell' && pane.shell) {
+      next[id] = { ...pane, shell: { ...pane.shell, cwd: root } }
+    } else if (pane.type === 'cli_agent' && pane.cli) {
+      next[id] = { ...pane, cli: { ...pane.cli, cwd: root } }
+    } else if (pane.type === 'ai_chat' && pane.aiChat) {
+      const hint = root
+        ? `Project folder: ${root}\nPrefer paths relative to this project when suggesting files.`
+        : ''
+      const prev = pane.aiChat.systemPrompt || ''
+      const stripped = prev.replace(/^Project folder:.*(\nPrefer paths.*)?\n?/m, '').trim()
+      next[id] = {
+        ...pane,
+        aiChat: {
+          ...pane.aiChat,
+          systemPrompt: [hint, stripped].filter(Boolean).join('\n\n')
+        }
+      }
+    } else {
+      next[id] = pane
+    }
+  }
+  return next
 }
 
 /** Create an empty workspace shell (no panes) so EmptyWorkspace CTAs are usable. */
@@ -232,19 +271,21 @@ function dirtyWorkspace(
 function materializePreset(
   preset: LayoutPreset,
   usedColors: string[] = [],
-  settings?: AppSettings | null
+  settings?: AppSettings | null,
+  projectRoot?: string
 ): { layout: LayoutNode; panes: Record<string, Pane>; activePaneId: string } {
   const templates = preset.paneTemplates ?? [{ type: 'shell' as PaneType }]
   const idMap = new Map<string, string>()
   const panes: Record<string, Pane> = {}
   const colors = [...usedColors]
+  const root = projectRoot?.trim() || ''
 
   for (let i = 0; i < templates.length; i++) {
     const tpl = templates[i]
     const paneId = createId('pane')
     const color = tpl.color ?? nextAgentColor(colors)
     colors.push(color)
-    const base = paneDefaults(tpl.type, paneId, color, settings)
+    const base = paneDefaults(tpl.type, paneId, color, settings, root)
     const pane: Pane = {
       ...base,
       ...tpl,
@@ -254,20 +295,41 @@ function materializePreset(
       type: tpl.type
     }
     // Ensure type-specific defaults when template only sets type
-    if (pane.type === 'shell' && !pane.shell) {
-      pane.shell = { shellId: settings?.defaultShellId ?? 'default', cwd: '' }
-    }
-    if (pane.type === 'ai_chat' && !pane.aiChat) {
-      pane.aiChat = {
-        providerId:
-          settings?.defaultProviderId ?? DEFAULT_SETTINGS.defaultProviderId ?? 'xai',
-        model: settings?.defaultModel ?? DEFAULT_SETTINGS.defaultModel ?? 'grok-2-latest',
-        systemPrompt: '',
-        threadId: createId('thread')
+    if (pane.type === 'shell') {
+      pane.shell = {
+        shellId: pane.shell?.shellId ?? settings?.defaultShellId ?? 'default',
+        cwd: root || pane.shell?.cwd || ''
       }
     }
-    if (pane.type === 'cli_agent' && !pane.cli) {
-      pane.cli = { command: '', args: [], env: {}, cwd: '' }
+    if (pane.type === 'cli_agent') {
+      pane.cli = {
+        command: pane.cli?.command ?? '',
+        args: pane.cli?.args ?? [],
+        env: pane.cli?.env ?? {},
+        cwd: root || pane.cli?.cwd || '',
+        lastExitCode: pane.cli?.lastExitCode ?? null
+      }
+    }
+    if (pane.type === 'ai_chat') {
+      pane.aiChat = {
+        providerId:
+          pane.aiChat?.providerId ??
+          settings?.defaultProviderId ??
+          DEFAULT_SETTINGS.defaultProviderId ??
+          'xai',
+        model:
+          pane.aiChat?.model ??
+          settings?.defaultModel ??
+          DEFAULT_SETTINGS.defaultModel ??
+          'grok-2-latest',
+        systemPrompt:
+          pane.aiChat?.systemPrompt ||
+          (root
+            ? `Project folder: ${root}\nPrefer paths relative to this project when suggesting files.`
+            : ''),
+        threadId: pane.aiChat?.threadId ?? createId('thread'),
+        contextLimit: pane.aiChat?.contextLimit
+      }
     }
     panes[paneId] = pane
     idMap.set(placeholderPaneId(i), paneId)
@@ -413,6 +475,7 @@ export const useAppStore = createStore<AppState>((set, get) => ({
     if (!ws) return
 
     const defaults = parseCliDefaults(profile.defaults)
+    const cwd = ws.projectRoot?.trim() || defaults.cwd || ''
     const targetId =
       paneId ??
       (ws.activePaneId && ws.panes[ws.activePaneId]?.type === 'cli_agent'
@@ -434,7 +497,7 @@ export const useAppStore = createStore<AppState>((set, get) => ({
               command: defaults.command,
               args: [...defaults.args],
               env: { ...defaults.env },
-              cwd: defaults.cwd,
+              cwd,
               lastExitCode: pane.cli?.lastExitCode ?? null
             }
           }
@@ -458,7 +521,7 @@ export const useAppStore = createStore<AppState>((set, get) => ({
         command: defaults.command,
         args: [...defaults.args],
         env: { ...defaults.env },
-        cwd: defaults.cwd
+        cwd
       }
     }
     const paneCount = Object.keys(ws.panes).length
@@ -795,7 +858,13 @@ export const useAppStore = createStore<AppState>((set, get) => ({
 
     const usedColors = Object.values(ws.panes).map((p) => p.color)
     const paneId = createId('pane')
-    const pane = paneDefaults(type, paneId, nextAgentColor(usedColors), get().settings)
+    const pane = paneDefaults(
+      type,
+      paneId,
+      nextAgentColor(usedColors),
+      get().settings,
+      ws.projectRoot
+    )
     const paneCount = Object.keys(ws.panes).length
 
     let next: Workspace
@@ -836,7 +905,13 @@ export const useAppStore = createStore<AppState>((set, get) => ({
 
     const usedColors = Object.values(ws.panes).map((p) => p.color)
     const paneId = createId('pane')
-    const pane = paneDefaults(type, paneId, nextAgentColor(usedColors), get().settings)
+    const pane = paneDefaults(
+      type,
+      paneId,
+      nextAgentColor(usedColors),
+      get().settings,
+      ws.projectRoot
+    )
     const paneCount = Object.keys(ws.panes).length
 
     if (paneCount === 0) {
@@ -1036,7 +1111,8 @@ export const useAppStore = createStore<AppState>((set, get) => ({
     const { layout, panes, activePaneId } = materializePreset(
       preset,
       [],
-      get().settings
+      get().settings,
+      ws.projectRoot
     )
     const next: Workspace = {
       ...ws,
@@ -1052,6 +1128,29 @@ export const useAppStore = createStore<AppState>((set, get) => ({
       paneRuntimeStatus: {}
     })
     await get().flushSave()
+  },
+
+  async setProjectRoot(path: string | null) {
+    const ws = get().activeWorkspace
+    if (!ws) return
+    const root = path?.trim() || undefined
+    const panes = root ? bindPanesToProjectRoot(ws.panes, root) : ws.panes
+    // If clearing root, leave pane cwds as-is (user may have customized)
+    const next: Workspace = {
+      ...ws,
+      projectRoot: root,
+      panes
+    }
+    dirtyWorkspace(set, get, next)
+    await get().flushSave()
+  },
+
+  async pickProjectRoot() {
+    const api = getArcheonApi()
+    const ws = get().activeWorkspace
+    const result = await api.dialog.openFolder(ws?.projectRoot)
+    if (result.canceled || !result.path) return
+    await get().setProjectRoot(result.path)
   },
 
   async saveUserPreset(name: string) {

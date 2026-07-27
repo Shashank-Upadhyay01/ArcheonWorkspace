@@ -464,16 +464,70 @@ export function builtinPresets(): LayoutPreset[] {
       id: 'war_room',
       name: 'War Room',
       builtIn: true,
-      // Large main + vertical side strip of stacked panes
+      // Claude | Grok | Shell — subscription agents + terminal
+      layout: split('h', [0.34, 0.33, 0.33], [
+        leaf('__p0'),
+        leaf('__p1'),
+        leaf('__p2')
+      ]),
+      paneTemplates: [
+        {
+          type: 'cli_agent',
+          name: 'Claude Code',
+          color: '#d4a27f',
+          profileId: 'builtin_claude',
+          cli: { command: 'claude', args: [], env: {}, cwd: '' }
+        },
+        {
+          type: 'cli_agent',
+          name: 'Grok Build',
+          color: '#3dd6c6',
+          profileId: 'builtin_grok',
+          cli: { command: 'grok', args: [], env: {}, cwd: '' }
+        },
+        {
+          type: 'shell',
+          name: 'Shell',
+          color: '#6cb6ff',
+          shell: { shellId: 'default', cwd: '' }
+        }
+      ]
+    },
+    {
+      id: 'war_room_stack',
+      name: 'War Room (stack)',
+      builtIn: true,
+      // Shell main + Claude/Grok stacked on the side
       layout: split(
         'h',
-        [0.7, 0.3],
+        [0.55, 0.45],
         [
           leaf('__p0'),
           split('v', [0.5, 0.5], [leaf('__p1'), leaf('__p2')])
         ]
       ),
-      paneTemplates: [{ type: 'shell' }, { type: 'ai_chat' }, { type: 'cli_agent' }]
+      paneTemplates: [
+        {
+          type: 'shell',
+          name: 'Shell',
+          color: '#6cb6ff',
+          shell: { shellId: 'default', cwd: '' }
+        },
+        {
+          type: 'cli_agent',
+          name: 'Claude Code',
+          color: '#d4a27f',
+          profileId: 'builtin_claude',
+          cli: { command: 'claude', args: [], env: {}, cwd: '' }
+        },
+        {
+          type: 'cli_agent',
+          name: 'Grok Build',
+          color: '#3dd6c6',
+          profileId: 'builtin_grok',
+          cli: { command: 'grok', args: [], env: {}, cwd: '' }
+        }
+      ]
     },
     {
       id: 'ide',

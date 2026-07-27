@@ -201,6 +201,12 @@ const archeonApi = {
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke(IpcChannels.shellOpenExternal, url)
   },
+  dialog: {
+    openFolder: (
+      defaultPath?: string
+    ): Promise<{ canceled: true } | { canceled: false; path: string }> =>
+      ipcRenderer.invoke(IpcChannels.dialogOpenFolder, defaultPath)
+  },
   update: {
     check: () => ipcRenderer.invoke(IpcChannels.updateCheck),
     download: () => ipcRenderer.invoke(IpcChannels.updateDownload),

@@ -32,9 +32,10 @@ export default function StatusBar(): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const paneCount = activeWorkspace ? Object.keys(activeWorkspace.panes).length : 0
   const broadcastCount = broadcastPaneIds.length
-  const activePane = activeWorkspace?.activePaneId
-    ? activeWorkspace.panes[activeWorkspace.activePaneId]
-    : null
+  const activePane =
+    activeWorkspace?.activePaneId && activeWorkspace.panes[activeWorkspace.activePaneId]
+      ? activeWorkspace.panes[activeWorkspace.activePaneId]
+      : null
 
   let contextLabel = ''
   if (activePane?.type === 'shell') {
@@ -69,6 +70,15 @@ export default function StatusBar(): JSX.Element {
         {activeWorkspace ? (
           <span className="statusbar-meta">
             {paneCount} pane{paneCount === 1 ? '' : 's'}
+          </span>
+        ) : null}
+        {activeWorkspace?.projectRoot ? (
+          <span
+            className="statusbar-meta statusbar-meta--accent"
+            title={activeWorkspace.projectRoot}
+          >
+            ⌂{' '}
+            {activeWorkspace.projectRoot.replace(/[/\\]+$/, '').split(/[/\\]/).pop()}
           </span>
         ) : null}
         {activePane ? (

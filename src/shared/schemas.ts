@@ -80,7 +80,8 @@ export const workspaceSchema = z.object({
   panes: z.record(paneSchema),
   activePaneId: z.string().optional(),
   sidebarCollapsed: z.boolean().optional(),
-  themeId: z.string().optional()
+  themeId: z.string().optional(),
+  projectRoot: z.string().optional()
 })
 
 export const agentProfileSchema = z.object({
