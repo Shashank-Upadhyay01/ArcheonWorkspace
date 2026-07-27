@@ -247,6 +247,8 @@ export default function App(): JSX.Element {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <VoiceModeOverlay
         active={voice.active}
+        levels={voice.levels}
+        speaking={voice.speaking}
         interimText={voice.interim}
         error={voice.error}
       />

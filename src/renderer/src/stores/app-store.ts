@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import { createStore } from '../lib/create-store'
 import { nextAgentColor } from '@shared/colors'
 import { createId } from '@shared/ids'
 import {
@@ -321,7 +321,7 @@ function findPreset(presetId: string, userPresets: LayoutPreset[]): LayoutPreset
   return builtinPresets().find((p) => p.id === presetId) ?? userPresets.find((p) => p.id === presetId)
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = createStore<AppState>((set, get) => ({
   workspaces: [],
   activeWorkspace: null,
   settings: null,

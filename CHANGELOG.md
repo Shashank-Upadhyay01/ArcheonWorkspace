@@ -2,6 +2,15 @@
 
 All notable changes to Archeon Workspace are documented in this file.
 
+## [0.3.2] — 2026-07-27
+
+### From-scratch store + voice DSP
+
+- **Removed Zustand** — custom `createStore` + `useSyncExternalStore`
+- **Voice rebuilt**: Web Audio mic capture, FFT/RMS waveform bars, energy VAD (not fake sines)
+- Pluggable `SpeechBackend` (system speech default; local model slot documented)
+- Policy doc: `docs/FROM-SCRATCH.md`
+
 ## [0.3.0] — 2026-07-26
 
 ### Agent sessions, tokens, voice, tasks

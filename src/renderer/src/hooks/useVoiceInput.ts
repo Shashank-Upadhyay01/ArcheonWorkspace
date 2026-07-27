@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-type SpeechRecognitionCtor = new () => SpeechRecognition
-
-function getSpeechRecognition(): SpeechRecognitionCtor | null {
-  const w = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionCtor
-    webkitSpeechRecognition?: SpeechRecognitionCtor
-  }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
-}
+import {
+  SystemSpeechBackend,
+  VoiceEngine,
+  type WaveformLevels
+} from '../lib/voice-engine'
 
 /**
  * Insert text into the currently focused editable control or xterm textarea.
+ * From-scratch DOM insertion — no input libraries.
  */
 export function insertTextAtFocus(text: string): boolean {
   const el = document.activeElement as HTMLElement | null
@@ -30,7 +26,11 @@ export function insertTextAtFocus(text: string): boolean {
     proto?.set?.call(el, next)
     el.dispatchEvent(new Event('input', { bubbles: true }))
     const pos = start + text.length
-    el.setSelectionRange(pos, pos)
+    try {
+      el.setSelectionRange(pos, pos)
+    } catch {
+      /* some inputs disallow */
+    }
     return true
   }
 
@@ -39,7 +39,6 @@ export function insertTextAtFocus(text: string): boolean {
     return true
   }
 
-  // xterm uses a hidden textarea
   if (el.tagName === 'TEXTAREA' || el.classList.contains('xterm-helper-textarea')) {
     const ta = el as HTMLTextAreaElement
     ta.focus()
@@ -56,132 +55,92 @@ export interface UseVoiceInputResult {
   interim: string
   error: string | null
   supported: boolean
+  levels: WaveformLevels
+  speaking: boolean
   toggle: () => void
   stop: () => void
 }
 
+const BAR_COUNT = 28
+
 /**
- * Global voice dictation (Web Speech API in Chromium/Electron).
- * Hotkey is registered by the host (Ctrl+Shift+Space).
+ * Global voice dictation — custom Web Audio capture + VAD + waveform.
+ * STT via SystemSpeechBackend (Chromium OS speech) until a local model lands.
+ * Hotkey: Ctrl+Shift+Space (registered by App).
  */
 export function useVoiceInput(): UseVoiceInputResult {
   const [active, setActive] = useState(false)
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const recRef = useRef<SpeechRecognition | null>(null)
-  const Ctor = typeof window !== 'undefined' ? getSpeechRecognition() : null
-  const supported = Boolean(Ctor)
+  const [levels, setLevels] = useState<WaveformLevels>(() =>
+    Array.from({ length: BAR_COUNT }, () => 0.08)
+  )
+  const [speaking, setSpeaking] = useState(false)
+  const engineRef = useRef<VoiceEngine | null>(null)
+
+  const supported =
+    typeof navigator !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia &&
+    typeof AudioContext !== 'undefined'
 
   const stop = useCallback(() => {
-    try {
-      recRef.current?.stop()
-    } catch {
-      /* ignore */
-    }
-    recRef.current = null
+    engineRef.current?.stop()
+    engineRef.current = null
     setActive(false)
     setInterim('')
+    setSpeaking(false)
+    setLevels(Array.from({ length: BAR_COUNT }, () => 0.08))
   }, [])
 
-  const start = useCallback(() => {
-    if (!Ctor) {
-      setError('Speech recognition is not available in this environment.')
+  const start = useCallback(async () => {
+    if (!supported) {
+      setError('Microphone / AudioContext not available.')
       return
     }
     setError(null)
-    const rec = new Ctor()
-    rec.continuous = true
-    rec.interimResults = true
-    rec.lang = navigator.language || 'en-US'
-
-    rec.onresult = (event: SpeechRecognitionEvent) => {
-      let interimBuf = ''
-      let finalBuf = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i]
-        const t = r[0]?.transcript ?? ''
-        if (r.isFinal) finalBuf += t
-        else interimBuf += t
-      }
-      if (finalBuf) {
-        const ok = insertTextAtFocus(finalBuf.endsWith(' ') ? finalBuf : `${finalBuf} `)
-        if (!ok) {
-          // Fallback: copy to clipboard so user can paste into any target
-          void navigator.clipboard.writeText(finalBuf).catch(() => {
-            /* ignore */
-          })
+    const engine = new VoiceEngine(
+      {
+        onLevels: setLevels,
+        onVad: setSpeaking,
+        onInterim: setInterim,
+        onFinal: (text) => {
+          const padded = text.endsWith(' ') ? text : `${text} `
+          const ok = insertTextAtFocus(padded)
+          if (!ok) {
+            void navigator.clipboard.writeText(text).catch(() => {
+              /* ignore */
+            })
+          }
+          setInterim('')
+        },
+        onError: (message) => {
+          setError(message)
         }
-        setInterim('')
-      } else {
-        setInterim(interimBuf)
-      }
-    }
-
-    rec.onerror = (ev: SpeechRecognitionErrorEvent) => {
-      if (ev.error === 'aborted' || ev.error === 'no-speech') return
-      setError(ev.message || ev.error || 'Voice recognition error')
-      setActive(false)
-    }
-
-    rec.onend = () => {
-      // If user still wants listening, restart (some engines stop after silence)
-      if (recRef.current === rec) {
-        try {
-          rec.start()
-        } catch {
-          setActive(false)
-          recRef.current = null
-        }
-      }
-    }
-
+      },
+      BAR_COUNT
+    )
+    engineRef.current = engine
     try {
-      rec.start()
-      recRef.current = rec
+      await engine.start(new SystemSpeechBackend())
       setActive(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setActive(false)
+      engineRef.current = null
     }
-  }, [Ctor])
+  }, [supported])
 
   const toggle = useCallback(() => {
     if (active) stop()
-    else start()
+    else void start()
   }, [active, start, stop])
 
   useEffect(() => {
     return () => {
-      try {
-        recRef.current?.abort()
-      } catch {
-        /* ignore */
-      }
+      engineRef.current?.stop()
+      engineRef.current = null
     }
   }, [])
 
-  return { active, interim, error, supported, toggle, stop }
-}
-
-// Minimal DOM typings for SpeechRecognition (not always in TS lib)
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  start(): void
-  stop(): void
-  abort(): void
-  onresult: ((ev: SpeechRecognitionEvent) => void) | null
-  onerror: ((ev: SpeechRecognitionErrorEvent) => void) | null
-  onend: (() => void) | null
-}
-
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number
-  results: SpeechRecognitionResultList
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string
-  message: string
+  return { active, interim, error, supported, levels, speaking, toggle, stop }
 }

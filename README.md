@@ -175,7 +175,7 @@ Until a **public GitHub Release** exists with assets, Check for updates will say
 
 ## Version
 
-Current: **0.3.0** — sessions, tokens, voice, tasks + auto-updater. See [CHANGELOG.md](CHANGELOG.md).
+Current: **0.3.2** — from-scratch store + voice DSP, sessions, CLI subscriptions. See [CHANGELOG.md](CHANGELOG.md) and [docs/FROM-SCRATCH.md](docs/FROM-SCRATCH.md).
 
 ### Subscription CLIs (no API key)
 

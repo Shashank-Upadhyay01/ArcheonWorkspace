@@ -2,7 +2,9 @@
 
 ## Design principle
 
-**Use the best engine for hard systems. Own the product.**
+**Own the product. Use platform engines only where rewriting them is a multi-year OS/browser project.**
+
+See [FROM-SCRATCH.md](./FROM-SCRATCH.md) for the full contract (Tier 0 engines vs Tier 1 owned code vs Tier 2 research).
 
 Archeon is a multi-agent terminal workspace. Reimplementing Chromium, a full
 VT terminal, or OS PTY plumbing would not make a better product — it would
@@ -35,7 +37,7 @@ delay features and add bugs. The right engines stay; everything that defines
 | **xterm.js** | Production terminal emulator; decades of edge cases solved |
 | **node-pty** | Cross-platform PTY; correct shell behavior |
 | **Zod** | Safe load of user JSON; small, typed |
-| **Zustand** | Tiny store; no Redux ceremony |
+| ~~**Zustand**~~ | **Removed** — custom `createStore` |
 
 ## Own (custom)
 
