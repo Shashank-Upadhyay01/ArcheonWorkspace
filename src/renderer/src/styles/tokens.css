@@ -1,40 +1,123 @@
+/**
+ * Liquid Glass design tokens — Apple-inspired frosted glass system.
+ * Terminals stay denser/opaque for readability; chrome uses translucency.
+ */
+
 :root,
 :root[data-theme='dark'] {
-  --bg-canvas: #0e1116;
-  --bg-panel: #151a22;
-  --bg-elevated: #1c2330;
-  --border: #2a3344;
-  --text: #e8eef7;
-  --text-muted: #8b97a8;
-  --accent: #3dd6c6;
-  --accent-dim: #2a9e92;
-  --danger: #f07178;
-  --warning: #e6b450;
-  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --radius: 8px;
-  --sidebar-width: 240px;
-  --term-bg: #0e1116;
+  /* Canvas — deep space with soft light wells */
+  --bg-canvas: #07090e;
+  --bg-canvas-glow-a: rgba(120, 180, 255, 0.14);
+  --bg-canvas-glow-b: rgba(61, 214, 198, 0.1);
+  --bg-canvas-glow-c: rgba(180, 120, 255, 0.08);
+
+  /* Glass fills */
+  --glass-bg: rgba(255, 255, 255, 0.055);
+  --glass-bg-strong: rgba(255, 255, 255, 0.09);
+  --glass-bg-soft: rgba(255, 255, 255, 0.035);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.1);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+  --glass-inset: rgba(255, 255, 255, 0.06);
+
+  /* Legacy aliases → glass (keeps older class names working) */
+  --bg-panel: var(--glass-bg);
+  --bg-elevated: var(--glass-bg-strong);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+
+  --text: rgba(255, 255, 255, 0.94);
+  --text-muted: rgba(255, 255, 255, 0.52);
+  --accent: #5eead4;
+  --accent-dim: #2dd4bf;
+  --danger: #ff7b86;
+  --warning: #f5c15a;
+
+  --font-ui: "IBM Plex Sans", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --sidebar-width: 252px;
+
+  --blur-sm: 16px;
+  --blur-md: 28px;
+  --blur-lg: 40px;
+  --sat: 1.55;
+
+  --shadow-glass:
+    0 1px 0 var(--glass-highlight-soft) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 12px 40px var(--glass-shadow);
+  --shadow-glass-sm:
+    0 1px 0 var(--glass-highlight-soft) inset,
+    0 6px 20px rgba(0, 0, 0, 0.28);
+
+  /* Terminals stay opaque for contrast */
+  --term-bg: #0a0c10;
   --term-fg: #e8eef7;
-  --term-cursor: #3dd6c6;
-  --term-selection: rgba(61, 214, 198, 0.28);
+  --term-cursor: #5eead4;
+  --term-selection: rgba(94, 234, 212, 0.28);
 }
 
 :root[data-theme='light'] {
-  --bg-canvas: #f4f6f9;
-  --bg-panel: #ffffff;
-  --bg-elevated: #eef2f7;
-  --border: #d0d8e4;
-  --text: #1a2332;
-  --text-muted: #5c6b7e;
+  --bg-canvas: #dfe6f0;
+  --bg-canvas-glow-a: rgba(255, 255, 255, 0.85);
+  --bg-canvas-glow-b: rgba(94, 234, 212, 0.2);
+  --bg-canvas-glow-c: rgba(120, 160, 255, 0.18);
+
+  --glass-bg: rgba(255, 255, 255, 0.48);
+  --glass-bg-strong: rgba(255, 255, 255, 0.68);
+  --glass-bg-soft: rgba(255, 255, 255, 0.32);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.55);
+  --glass-shadow: rgba(30, 40, 60, 0.14);
+  --glass-inset: rgba(255, 255, 255, 0.65);
+
+  --bg-panel: var(--glass-bg);
+  --bg-elevated: var(--glass-bg-strong);
+  --border: rgba(30, 40, 60, 0.1);
+  --border-strong: rgba(30, 40, 60, 0.16);
+
+  --text: rgba(15, 22, 35, 0.92);
+  --text-muted: rgba(15, 22, 35, 0.5);
   --accent: #0d9f90;
   --accent-dim: #0a7a6f;
-  --danger: #c23b44;
-  --warning: #b8860b;
-  --term-bg: #f8fafc;
+  --danger: #d64550;
+  --warning: #c4891a;
+
+  --term-bg: #f7f9fc;
   --term-fg: #1a2332;
   --term-cursor: #0d9f90;
-  --term-selection: rgba(13, 159, 144, 0.22);
+  --term-selection: rgba(13, 159, 144, 0.2);
+
+  --shadow-glass:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 10px 36px var(--glass-shadow);
+  --shadow-glass-sm:
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 4px 16px rgba(30, 40, 60, 0.1);
+}
+
+/* Shared glass surface mixin via custom properties consumers */
+.glass-surface {
+  background: var(--glass-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+}
+
+.glass-surface-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
 }
 
 @media (prefers-reduced-motion: reduce) {

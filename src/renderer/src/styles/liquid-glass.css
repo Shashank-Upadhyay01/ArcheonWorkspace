@@ -1,0 +1,586 @@
+/**
+ * Liquid Glass chrome overrides — Apple-inspired frosted glass UI.
+ * Loaded after global.css so mission-control structure keeps working.
+ */
+
+/* ── Ambient canvas ───────────────────────────────────────── */
+
+body {
+  background: var(--bg-canvas);
+}
+
+.app-shell {
+  background:
+    radial-gradient(ellipse 90% 60% at 10% -10%, var(--bg-canvas-glow-a), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 10%, var(--bg-canvas-glow-b), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, var(--bg-canvas-glow-c), transparent 55%),
+    var(--bg-canvas);
+}
+
+.app-content {
+  background: transparent;
+  padding: 0.45rem 0.55rem 0.45rem 0.35rem;
+  gap: 0.45rem;
+}
+
+/* ── Title bar ────────────────────────────────────────────── */
+
+.titlebar {
+  height: 48px;
+  margin: 0.45rem 0.55rem 0;
+  padding: 0 0.65rem 0 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-glass-sm);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  border-bottom: 1px solid var(--border);
+}
+
+.titlebar-toggle,
+.titlebar-action,
+.titlebar-settings {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.15s ease;
+}
+
+.titlebar-toggle:hover,
+.titlebar-action:hover:not(:disabled),
+.titlebar-settings:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.titlebar-project {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.titlebar-project--set {
+  background: color-mix(in srgb, var(--accent) 12%, var(--glass-bg-strong));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.titlebar-mark {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.titlebar-product {
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.titlebar-tag {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+
+.sidebar {
+  width: var(--sidebar-width);
+  margin: 0.45rem 0 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-glass-sm);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  overflow: hidden;
+}
+
+.sidebar--collapsed {
+  width: 0;
+  margin: 0;
+  border: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-heading {
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sidebar-item {
+  border-radius: var(--radius-sm);
+  margin: 0.1rem 0.35rem;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebar-item--active {
+  background: var(--glass-bg-strong);
+  border-color: var(--border);
+  box-shadow: var(--shadow-glass-sm);
+}
+
+.sidebar-item-main:hover {
+  background: var(--glass-bg-soft);
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-input {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(12px);
+}
+
+.sidebar-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none;
+}
+
+.sidebar-icon-btn {
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.sidebar-icon-btn:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--border);
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+
+.btn {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--border-strong);
+}
+
+.btn--ghost {
+  background: transparent;
+}
+
+.btn--accent {
+  background: color-mix(in srgb, var(--accent) 28%, var(--glass-bg-strong));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text);
+  box-shadow:
+    0 1px 0 var(--glass-highlight-soft) inset,
+    0 6px 18px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.btn--accent:hover {
+  background: color-mix(in srgb, var(--accent) 40%, var(--glass-bg-strong));
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+
+.empty-workspace {
+  background: transparent;
+}
+
+.empty-workspace-inner {
+  max-width: 720px;
+  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+}
+
+.empty-kicker {
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+
+.empty-cta {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-glass-sm);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.empty-cta:hover {
+  transform: translateY(-2px);
+  background: var(--glass-bg-strong);
+  border-color: var(--border-strong);
+}
+
+.empty-cta--featured {
+  background: color-mix(in srgb, var(--glass-bg-strong) 80%, var(--accent));
+}
+
+.empty-cta-badge {
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ── Workspace toolbar + dock ─────────────────────────────── */
+
+.workspace-main--dock {
+  gap: 0.45rem;
+  background: transparent;
+}
+
+.workspace-toolbar {
+  margin: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-glass-sm);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+}
+
+.workspace-toolbar-label {
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.dock-host {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* ── Panes — glass chrome, solid terminal body ────────────── */
+
+.pane-chrome {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  box-shadow: var(--shadow-glass-sm);
+  backdrop-filter: blur(var(--blur-sm)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(var(--sat));
+  overflow: hidden;
+}
+
+.pane-chrome--focused {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    var(--shadow-glass);
+}
+
+.pane-chrome-header {
+  background: var(--glass-bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(18px) saturate(var(--sat));
+}
+
+.pane-chrome-btn {
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+}
+
+.pane-chrome-btn:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--border);
+}
+
+.pane-chrome-menu {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+}
+
+.pane-chrome-content {
+  /* Keep terminal / agent body dense and readable */
+  background: color-mix(in srgb, var(--term-bg) 92%, transparent);
+}
+
+.tab-group-bar {
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+}
+
+.tab-group-tab {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab-group-tab--active {
+  background: var(--glass-bg-strong);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.tab-group-add {
+  border-radius: var(--radius-pill);
+}
+
+/* ── Splitters ────────────────────────────────────────────── */
+
+.split-gutter {
+  background: transparent;
+}
+
+.split-gutter:hover,
+.split-gutter:active {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ── AI / CLI chrome ──────────────────────────────────────── */
+
+.ai-chat-pane,
+.cli-agent-pane,
+.shell-pane {
+  background: transparent;
+}
+
+.ai-chat-header,
+.cli-agent-header {
+  background: var(--glass-bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ai-chat-session-meta {
+  background: color-mix(in srgb, var(--glass-bg) 70%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.ai-chat-bubble {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(10px);
+}
+
+.ai-chat-bubble--assistant {
+  background: color-mix(in srgb, var(--accent) 8%, var(--glass-bg-soft));
+}
+
+.ai-chat-composer {
+  border-top: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+}
+
+.ai-chat-input,
+.cli-agent-input,
+.shell-pane-banner {
+  border-radius: var(--radius-sm);
+}
+
+.ai-chat-input {
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+}
+
+.cli-login-banner {
+  border-radius: 0;
+  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--warning) 14%, var(--glass-bg));
+}
+
+/* ── Modals & palette ─────────────────────────────────────── */
+
+.modal-backdrop,
+.command-palette-backdrop {
+  background: rgba(4, 6, 10, 0.45);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+:root[data-theme='light'] .modal-backdrop,
+:root[data-theme='light'] .command-palette-backdrop {
+  background: rgba(20, 30, 45, 0.22);
+}
+
+.modal,
+.command-palette {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  overflow: hidden;
+}
+
+.modal-header,
+.command-palette-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+}
+
+.command-palette-input {
+  background: transparent;
+}
+
+.command-palette-item {
+  border-radius: var(--radius-sm);
+  margin: 0.15rem 0.45rem;
+}
+
+.command-palette-item--active,
+.command-palette-item:hover {
+  background: var(--glass-bg);
+  border: 1px solid var(--border);
+}
+
+.settings-input,
+.settings-field select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  backdrop-filter: blur(10px);
+}
+
+.settings-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: none;
+}
+
+/* ── Status bar ───────────────────────────────────────────── */
+
+.statusbar {
+  height: 32px;
+  margin: 0 0.55rem 0.45rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-glass-sm);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--sat));
+  border-top: 1px solid var(--border);
+}
+
+.statusbar-pill {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+}
+
+.statusbar-pill--warn {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+  background: color-mix(in srgb, var(--warning) 12%, var(--glass-bg-soft));
+}
+
+.statusbar-pill--error {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, var(--glass-bg-soft));
+}
+
+/* ── Token bar / voice / toasts ───────────────────────────── */
+
+.token-bar-track {
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 0 var(--glass-highlight-soft) inset;
+}
+
+.token-bar-fill {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 55%, #7dd3fc),
+    var(--accent)
+  );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.update-toast {
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat));
+}
+
+.voice-glass-panel {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, #ffffff 16%, transparent),
+    var(--glass-bg-strong)
+  );
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(1.7);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(1.7);
+}
+
+.voice-waveform-bar {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 75%, var(--accent)),
+    var(--accent)
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ── Soft focus rings ─────────────────────────────────────── */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* ── Reduced motion keeps glass, drops motion ─────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-cta:hover {
+    transform: none;
+  }
+}

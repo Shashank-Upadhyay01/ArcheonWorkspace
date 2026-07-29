@@ -53,9 +53,12 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 500,
     title: 'Archeon Workspace',
-    backgroundColor: '#0e1116',
+    // Near-black canvas so frosted glass chrome can read as liquid glass
+    backgroundColor: '#07090e',
     show: false,
     autoHideMenuBar: true,
+    // Slightly rounded feel on supporting platforms; no-op where unsupported
+    roundedCorners: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

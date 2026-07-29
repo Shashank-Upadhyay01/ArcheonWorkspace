@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/500.css'
 import App from './App'
 import './styles/tokens.css'
 import './styles/global.css'
+import './styles/liquid-glass.css'
 
 const rootEl = document.getElementById('root')
 
