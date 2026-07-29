@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { join } from 'path'
 import { IpcChannels } from '../shared/ipc'
 import { createAutosave } from './autosave'
@@ -16,6 +16,36 @@ let recoveryAutosave: ReturnType<typeof createAutosave> | null = null
 /** Max wait for renderer flushSave ack before force-closing the window. */
 const QUIT_SAVE_TIMEOUT_MS = 3000
 
+/**
+ * Immersive UI: no File/Edit/View/Window/Help chrome on Windows/Linux.
+ * Standard cut/copy/paste/selectAll still work via Chromium accelerators in inputs.
+ * On macOS, keep a minimal Edit menu (platform convention + shortcuts).
+ */
+function installApplicationMenu(): void {
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        { role: 'appMenu' },
+        {
+          label: 'Edit',
+          submenu: [
+            { role: 'undo' },
+            { role: 'redo' },
+            { type: 'separator' },
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' },
+            { role: 'selectAll' }
+          ]
+        }
+      ])
+    )
+    return
+  }
+  // Hide the default menu strip entirely (the immersion breaker).
+  Menu.setApplicationMenu(null)
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -25,6 +55,7 @@ function createWindow(): void {
     title: 'Archeon Workspace',
     backgroundColor: '#0e1116',
     show: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -32,6 +63,12 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  // Ensure no per-window menu reappears on Windows/Linux
+  if (process.platform !== 'darwin') {
+    mainWindow.setMenuBarVisibility(false)
+    mainWindow.setMenu(null)
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -99,6 +136,8 @@ function writeRecoverySnapshot(): void {
 }
 
 app.whenReady().then(() => {
+  installApplicationMenu()
+
   const userData = app.getPath('userData')
   store = new WorkspaceStore(userData)
   ptyManager = new PtyManager()
